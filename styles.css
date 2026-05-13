@@ -201,6 +201,10 @@ body, html {
     }
 
     /* Standard Touch Target Density */
+    #closure-list {
+        overscroll-behavior-y: contain;
+    }
+
     #closure-list li {
         padding: 12px 15px;
     }

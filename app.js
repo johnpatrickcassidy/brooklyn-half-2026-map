@@ -545,13 +545,15 @@ document.addEventListener('DOMContentLoaded', async () => {
     let currentY = 0;
     let initialHeight = 0;
     let isDragging = false;
+    let dragMode = 'none'; // 'header', 'sheet', 'pending-collapse'
+    let initialScrollTop = 0;
 
     function getSnapHeights() {
         const vh = window.innerHeight;
         return {
-            collapsed: sidebarHeader.offsetHeight + 10,
+            collapsed: sidebarHeader.offsetHeight + 10 + (vh * 0.05),
             default: vh * 0.25,
-            expanded: vh * 0.90
+            expanded: vh * 0.85
         };
     }
 
@@ -562,29 +564,57 @@ document.addEventListener('DOMContentLoaded', async () => {
         startY = e.touches ? e.touches[0].clientY : e.clientY;
         currentY = startY;
         initialHeight = sidebar.offsetHeight;
-        isDragging = true;
-        sidebar.classList.add('dragging');
+        initialScrollTop = listContainer ? listContainer.scrollTop : 0;
+        const snaps = getSnapHeights();
+        
+        if (e.target.closest('header')) {
+            isDragging = true;
+            dragMode = 'header';
+            sidebar.classList.add('dragging');
+        } else if (e.target.closest('#closure-list')) {
+            if (initialHeight < snaps.expanded - 10) {
+                isDragging = true;
+                dragMode = 'sheet';
+                sidebar.classList.add('dragging');
+            } else if (initialScrollTop === 0) {
+                isDragging = true;
+                dragMode = 'pending-collapse';
+                sidebar.classList.add('dragging');
+            }
+        }
     }
 
     function onTouchMove(e) {
         if (!isDragging) return;
         currentY = e.touches ? e.touches[0].clientY : e.clientY;
-        const deltaY = startY - currentY; 
-        const newHeight = initialHeight + deltaY;
-        const vh = window.innerHeight;
-        const minH = sidebarHeader.offsetHeight;
-        const maxH = vh * 0.95;
+        const deltaY = startY - currentY; // positive means drag up
+        const snaps = getSnapHeights();
         
-        if (newHeight >= minH && newHeight <= maxH) {
-            sidebar.style.height = `${newHeight}px`;
+        if (dragMode === 'pending-collapse') {
+            if (deltaY < -5) { // Dragging down
+                dragMode = 'sheet';
+            } else if (deltaY > 5) { // Dragging up, let list scroll natively
+                isDragging = false;
+                sidebar.classList.remove('dragging');
+                return;
+            }
         }
-        if (e.cancelable) e.preventDefault();
+        
+        if (dragMode === 'header' || dragMode === 'sheet') {
+            const newHeight = initialHeight + deltaY;
+            const minH = snaps.collapsed;
+            const maxH = snaps.expanded;
+            
+            sidebar.style.height = `${Math.max(minH, Math.min(maxH, newHeight))}px`;
+            if (e && e.cancelable) e.preventDefault();
+        }
     }
 
     function onTouchEnd() {
         if (!isDragging) return;
         isDragging = false;
         sidebar.classList.remove('dragging');
+        if (dragMode === 'pending-collapse') return;
         
         const finalHeight = sidebar.offsetHeight;
         const snaps = getSnapHeights();
@@ -608,10 +638,10 @@ document.addEventListener('DOMContentLoaded', async () => {
         }, 350);
     }
 
-    sidebarHeader.addEventListener('touchstart', onTouchStart, { passive: false });
+    sidebar.addEventListener('touchstart', onTouchStart, { passive: false });
     window.addEventListener('touchmove', onTouchMove, { passive: false });
     window.addEventListener('touchend', onTouchEnd);
-    sidebarHeader.addEventListener('mousedown', onTouchStart);
+    sidebar.addEventListener('mousedown', onTouchStart);
     window.addEventListener('mousemove', onTouchMove);
     window.addEventListener('mouseup', onTouchEnd);
 
