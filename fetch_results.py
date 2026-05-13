@@ -105,8 +105,16 @@ if __name__ == "__main__":
     runners = fetch_all_nyrr_results()
     output_file = "brooklyn_half_2025_results.json"
     
-    print(f"\nSaving {len(runners)} unique results to {output_file}...", flush=True)
+    print(f"\nMinifying and saving {len(runners)} unique results to {output_file}...", flush=True)
+    minified = []
+    for r in runners:
+        minified.append({
+            "overallPlace": r.get("overallPlace"),
+            "overallTime": r.get("overallTime"),
+            "pace": r.get("pace")
+        })
+        
     with open(output_file, "w") as f:
-        json.dump(runners, f, indent=2)
+        json.dump(minified, f, separators=(',', ':'))
         
     print("Done!", flush=True)
