@@ -28,7 +28,8 @@ document.addEventListener('DOMContentLoaded', async () => {
         zoom: 14,
         styles: lightGrayStyle,
         mapTypeControl: false,
-        streetViewControl: false
+        streetViewControl: false,
+        gestureHandling: 'greedy'
     });
 
     const listContainer = document.getElementById('closure-list');
