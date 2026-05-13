@@ -142,29 +142,7 @@ body, html {
         margin-bottom: 5px;
     }
 
-    /* Collapsed Accordion State */
-    .map-legend.collapsed {
-        padding: 8px 10px;
-        border-radius: 20px;
-    }
-    .map-legend.collapsed h4 {
-        margin-bottom: 0;
-        gap: 6px;
-    }
-    .map-legend.collapsed .legend-title-text {
-        display: none;
-    }
-    .map-legend.collapsed .legend-title-icon {
-        display: inline-block !important;
-        font-size: 1.1rem;
-        color: #0B1B3D;
-    }
-    .map-legend.collapsed .legend-inner-items {
-        display: none;
-    }
-    .map-legend.collapsed h4 .chevron {
-        transform: rotate(-90deg);
-    }
+
 
     /* Bottom Sheet Drawer */
     #sidebar {
@@ -232,25 +210,15 @@ body, html {
     }
 }
 
-/* Custom Popup Styling (Direction 5: Dark Alert Card) */
-.leaflet-popup-content-wrapper {
-    background: #0B1B3D !important;
-    color: #fff !important;
-    border-radius: 4px !important;
-    border-left: 6px solid #FDB813 !important;
-}
-
-.leaflet-popup-content {
-    margin: 0 !important;
-    padding: 15px !important;
-}
-
-.leaflet-popup-tip {
-    background: #0B1B3D !important;
-}
-
-.leaflet-popup-close-button {
-    color: #fff !important;
+/* Custom InfoWindow Styling (Direction 5: Dark Alert Card) */
+.dark-alert-card {
+    background: #0B1B3D;
+    color: #fff;
+    border-radius: 4px;
+    border-left: 6px solid #FDB813;
+    padding: 15px;
+    margin: 0;
+    min-width: 200px;
 }
 
 .alert-time {
@@ -353,6 +321,42 @@ body, html {
     letter-spacing: 0.5px;
     border-bottom: 1px solid #dee2e6;
     padding-bottom: 5px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+    cursor: pointer;
+    user-select: none;
+}
+.map-legend h4 .chevron {
+    transition: transform 0.2s ease;
+    font-size: 0.75rem;
+}
+
+/* Global Collapsed Accordion State */
+.map-legend.collapsed {
+    padding: 8px 12px;
+    border-radius: 20px;
+    width: max-content;
+}
+.map-legend.collapsed h4 {
+    margin-bottom: 0;
+    border-bottom: none;
+    gap: 6px;
+}
+.map-legend.collapsed .legend-title-text {
+    display: none;
+}
+.map-legend.collapsed .legend-title-icon {
+    display: inline-block !important;
+    font-size: 1.1rem;
+    color: #0B1B3D;
+}
+.map-legend.collapsed .legend-inner-items {
+    display: none;
+}
+.map-legend.collapsed h4 .chevron {
+    transform: rotate(-90deg);
 }
 
 .legend-item {

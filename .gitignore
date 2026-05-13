@@ -13,3 +13,6 @@ Thumbs.db
 
 # Jetski / Gemini artifacts if any leak in
 .gemini/
+
+# Local configuration secrets
+config.js
