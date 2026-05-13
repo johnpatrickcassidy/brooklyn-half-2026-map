@@ -1,0 +1,281 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Street-Snapped Geometry Directions</title>
+    <!-- Leaflet CSS -->
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" crossorigin=""/>
+    <style>
+        :root {
+            --primary: #1a73e8;
+            --bg: #f8f9fa;
+            --border: #dee2e6;
+        }
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+            line-height: 1.6;
+            color: #333;
+            background-color: var(--bg);
+            margin: 0;
+            padding: 40px 20px;
+        }
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            background: #fff;
+            padding: 40px;
+            border-radius: 12px;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.05);
+        }
+        h1 { color: var(--primary); border-bottom: 2px solid var(--border); padding-bottom: 10px; }
+        h2 { color: #202124; margin-top: 30px; }
+        .intro-box {
+            background: #fff3cd;
+            border-left: 4px solid #ffc107;
+            padding: 20px;
+            border-radius: 0 8px 8px 0;
+            margin-bottom: 40px;
+        }
+        .directions-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(320px, 1fr));
+            gap: 30px;
+            margin-top: 20px;
+        }
+        .direction-card {
+            border: 1px solid var(--border);
+            border-radius: 10px;
+            overflow: hidden;
+            display: flex;
+            flex-direction: column;
+            background: #fff;
+            transition: transform 0.2s;
+        }
+        .direction-card:hover {
+            transform: translateY(-4px);
+            box-shadow: 0 8px 12px rgba(0,0,0,0.1);
+        }
+        .mini-map {
+            height: 220px;
+            width: 100%;
+            background: #e9ecef;
+        }
+        .card-content {
+            padding: 20px;
+            display: flex;
+            flex-direction: column;
+            flex-grow: 1;
+        }
+        .card-content h3 { margin-top: 0; color: #1f2937; }
+        .card-content p { font-size: 0.9rem; color: #4b5563; flex-grow: 1; }
+        .pros-cons {
+            margin: 15px 0;
+            font-size: 0.85rem;
+            background: #f8f9fa;
+            padding: 10px;
+            border-radius: 6px;
+        }
+        .pros-cons ul { margin: 5px 0; padding-left: 20px; }
+        .pro { color: #0f9d58; }
+        .con { color: #d93025; }
+        .copy-btn {
+            margin-top: 15px;
+            background-color: var(--primary);
+            color: white;
+            border: none;
+            padding: 10px 15px;
+            border-radius: 6px;
+            cursor: pointer;
+            font-weight: 600;
+            transition: background 0.2s;
+        }
+        .copy-btn:hover { background-color: #1557b0; }
+        .copy-btn.copied { background-color: #0f9d58; }
+        
+        #toast {
+            position: fixed;
+            bottom: 30px;
+            right: 30px;
+            background: #333;
+            color: white;
+            padding: 12px 24px;
+            border-radius: 8px;
+            display: none;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+            z-index: 10000;
+        }
+    </style>
+</head>
+<body>
+
+<div class="container">
+    <header>
+        <h1>Road Network Snap - Architecture Directions</h1>
+    </header>
+
+    <div class="intro-box">
+        <p><strong>Problem Statement:</strong> The initial map relies on two-point straight line segments. For curving corridors like <em>Parkside Avenue</em> or highway merge roads, straight lines visually cut through city blocks and parks rather than tracing the true physical street network.</p>
+        <p>Below are three implementation avenues to achieve high-fidelity road snapping. Compare the live demos (demonstrating straight vs snapped geometries on Parkside Ave) and copy the prompt for your preferred technical path.</p>
+    </div>
+
+    <section>
+        <div class="directions-grid">
+            <!-- Option 1 -->
+            <div class="direction-card">
+                <div id="map-opt1" class="mini-map"></div>
+                <div class="card-content">
+                    <h3>Option 1: Runtime OSRM Routing API</h3>
+                    <p>Dynamically queries the public Open Source Routing Machine (OSRM) driving API at map load time. Passes start/end points, extracts the road-aligned GeoJSON geometry, and plots the customized polylines.</p>
+                    <div class="pros-cons">
+                        <strong>Trade-offs:</strong>
+                        <ul>
+                            <li class="pro">Highly accurate street mapping</li>
+                            <li class="pro">Zero static storage overhead</li>
+                            <li class="con">Runtime API dependency (requires network fetch)</li>
+                        </ul>
+                    </div>
+                    <button class="copy-btn" onclick="copyGeometryPrompt(1, this)">Copy Prompt</button>
+                </div>
+            </div>
+
+            <!-- Option 2 -->
+            <div class="direction-card">
+                <div id="map-opt2" class="mini-map"></div>
+                <div class="card-content">
+                    <h3>Option 2: Pre-compiled Dense Geometries</h3>
+                    <p>Pre-calculates the dense coordinate arrays offline once and permanently embeds the high-fidelity line paths directly into <code>data.js</code>. Maintains the entire project as an independent static site.</p>
+                    <div class="pros-cons">
+                        <strong>Trade-offs:</strong>
+                        <ul>
+                            <li class="pro">Ultra-fast rendering (no runtime API lags)</li>
+                            <li class="pro">100% offline-capable client architecture</li>
+                            <li class="con">Substantially increases the source file size of data.js</li>
+                        </ul>
+                    </div>
+                    <button class="copy-btn" onclick="copyGeometryPrompt(2, this)">Copy Prompt</button>
+                </div>
+            </div>
+
+            <!-- Option 3 -->
+            <div class="direction-card">
+                <div id="map-opt3" class="mini-map"></div>
+                <div class="card-content">
+                    <h3>Option 3: Mapbox GL / Google Maps Engine</h3>
+                    <p>Migrates the base tech stack from standard Leaflet to Mapbox GL JS or Google Maps API. Utilizes premium backend map matching services to natively bond custom vector layers to actual road network segments.</p>
+                    <div class="pros-cons">
+                        <strong>Trade-offs:</strong>
+                        <ul>
+                            <li class="pro">Industry standard rendering performance</li>
+                            <li class="pro">Advanced isometric camera and layering options</li>
+                            <li class="con">Requires dedicated platform API key configurations</li>
+                        </ul>
+                    </div>
+                    <button class="copy-btn" onclick="copyGeometryPrompt(3, this)">Copy Prompt</button>
+                </div>
+            </div>
+        </div>
+    </section>
+</div>
+
+<div id="toast">Prompt copied to clipboard! Paste it back into the chat.</div>
+
+<!-- Leaflet JS -->
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" crossorigin=""></script>
+<script>
+    // Parkside Avenue demo segment (curving along Prospect Park)
+    const startPt = [40.6560, -73.9615]; // Ocean Ave end
+    const endPt = [40.6530, -73.9710];   // Park Circle end
+    const demoCenter = [40.6545, -73.9662];
+
+    // Base straight line array
+    const straightLineCoords = [startPt, endPt];
+
+    function setupDemoMap(id, styleAction) {
+        const map = L.map(id, { zoomControl: false, dragging: false, scrollWheelZoom: false }).setView(demoCenter, 15);
+        L.tileLayer('https://tile.openstreetmap.org/{z}/{x}/{y}.png', { maxZoom: 19 }).addTo(map);
+        styleAction(map);
+        return map;
+    }
+
+    function renderBrandedLine(map, latlngs, label) {
+        // Option 3 Branding (Neon Green Outer + Navy Core)
+        L.polyline(latlngs, { color: '#00ff88', weight: 10, opacity: 0.4 }).addTo(map);
+        L.polyline(latlngs, { color: '#002b49', weight: 4, opacity: 1.0 }).addTo(map);
+
+        // Add comparison marker/label if helpful, but simple paths speak for themselves
+    }
+
+    document.addEventListener('DOMContentLoaded', () => {
+        // Option 1 Map: Simulate live OSRM call by fetching snapped route
+        setupDemoMap('map-opt1', (map) => {
+            // Draw faint straight line for baseline context
+            L.polyline(straightLineCoords, { color: '#999', weight: 2, dashArray: '5, 5' }).addTo(map);
+
+            // Real OSRM call to demonstrate perfect snapping live
+            const osrmUrl = `https://router.project-osrm.org/route/v1/driving/${startPt[1]},${startPt[0]};${endPt[1]},${endPt[0]}?overview=full&geometries=geojson`;
+            fetch(osrmUrl)
+                .then(res => res.json())
+                .then(data => {
+                    if (data.routes && data.routes[0]) {
+                        // Convert geojson coords [lng, lat] to Leaflet [lat, lng]
+                        const snappedCoords = data.routes[0].geometry.coordinates.map(c => [c[1], c[0]]);
+                        renderBrandedLine(map, snappedCoords);
+                    } else {
+                        renderBrandedLine(map, straightLineCoords); // Fallback
+                    }
+                }).catch(() => renderBrandedLine(map, straightLineCoords));
+        });
+
+        // Option 2 Map: Show dense precompiled static path mapping exactly along road
+        setupDemoMap('map-opt2', (map) => {
+            // Pre-extracted snapped points along Parkside Ave
+            const precompiledPath = [
+                [40.6560, -73.9615], [40.6558, -73.9622], [40.6556, -73.9630],
+                [40.6554, -73.9640], [40.6551, -73.9652], [40.6548, -73.9665],
+                [40.6544, -73.9680], [40.6538, -73.9695], [40.6530, -73.9710]
+            ];
+            // Faint straight baseline
+            L.polyline(straightLineCoords, { color: '#999', weight: 2, dashArray: '5, 5' }).addTo(map);
+            renderBrandedLine(map, precompiledPath);
+        });
+
+        // Option 3 Map: Show idealized premium mapped road overlay
+        setupDemoMap('map-opt3', (map) => {
+            // For simple demo, displays cleanly snapped line highlighting platform feature matching
+            const premiumPath = [
+                [40.6560, -73.9615], [40.6555, -73.9635], [40.6548, -73.9665], [40.6530, -73.9710]
+            ];
+            L.polyline(straightLineCoords, { color: '#999', weight: 2, dashArray: '5, 5' }).addTo(map);
+            renderBrandedLine(map, premiumPath);
+        });
+    });
+
+    const promptTemplates = {
+        1: `Please update app.js to implement "Option 1: Runtime OSRM Routing API". Keep data.js structured with basic start/end coordinates. Update app.js so that when iterating through closuresData, it makes a fetch call to the public OSRM driving route API passing the start and end coordinate pairs. Extract the road-snapped GeoJSON line geometry from the response, convert the coordinates to Leaflet's expected [lat, lng] arrays, and plot the nested custom-branded polylines along the precise street path.`,
+        
+        2: `Please update data.js and app.js to implement "Option 2: Pre-compiled Dense Geometries". To achieve this, generate or enrich the 'latlngs' arrays inside data.js to contain high-density coordinate arrays that precisely follow the curves of the actual streets for all 19 closures (rather than just basic start/end points). Keep app.js entirely static and offline-capable so it simply renders these dense coordinate sequences natively without external API fetches.`,
+        
+        3: `Please migrate our mapping engine to "Option 3: Mapbox GL / Google Maps Engine". Re-architect index.html and app.js to load the Mapbox GL JS SDK. Configure a map client with a custom base style, and update the closure rendering logic to utilize premium platform services (such as Map Matching or native GeoJSON vector layer overlays) to snap the road closures perfectly onto the underlying street infrastructure.`
+    };
+
+    function copyGeometryPrompt(optId, buttonEl) {
+        const textToCopy = promptTemplates[optId];
+        navigator.clipboard.writeText(textToCopy).then(() => {
+            document.querySelectorAll('.copy-btn').forEach(b => {
+                b.classList.remove('copied');
+                b.innerText = 'Copy Prompt';
+            });
+            buttonEl.classList.add('copied');
+            buttonEl.innerText = 'Copied!';
+
+            const toastEl = document.getElementById('toast');
+            toastEl.style.display = 'block';
+            setTimeout(() => { toastEl.style.display = 'none'; }, 3000);
+        }).catch(e => {
+            alert('Copy failed. Please copy prompt text manually.');
+        });
+    }
+</script>
+</body>
+</html>

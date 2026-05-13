@@ -1,0 +1,611 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Mobile Responsiveness & Layout Tuner</title>
+    <!-- Leaflet CSS -->
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" crossorigin=""/>
+    <style>
+        body {
+            display: flex;
+            height: 100vh;
+            margin: 0;
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+            background: #e9ecef;
+            color: #333;
+            overflow: hidden;
+        }
+
+        /* ==========================================
+           Preview Area & Device Frame
+           ========================================== */
+        .preview-section {
+            flex-grow: 1;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            padding: 20px;
+            overflow-y: auto;
+        }
+
+        .viewport-header {
+            margin-bottom: 15px;
+            font-size: 0.9rem;
+            color: #6c757d;
+            font-weight: 600;
+            display: flex;
+            gap: 15px;
+        }
+
+        .device-frame {
+            width: 393px;
+            height: 852px;
+            background: white;
+            border: 14px solid #111;
+            border-radius: 40px;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.2);
+            overflow: hidden;
+            position: relative;
+            display: flex;
+            flex-direction: column;
+            transition: width 0.3s ease, height 0.3s ease;
+        }
+
+        /* ==========================================
+           Control Panel
+           ========================================== */
+        .control-panel {
+            width: 420px;
+            background: white;
+            border-left: 1px solid #dee2e6;
+            padding: 25px;
+            overflow-y: auto;
+            box-shadow: -2px 0 12px rgba(0,0,0,0.05);
+            flex-shrink: 0;
+        }
+
+        .control-panel h2 {
+            margin-top: 0;
+            color: #0B1B3D;
+            font-size: 1.4rem;
+            border-bottom: 2px solid #FDB813;
+            padding-bottom: 10px;
+            margin-bottom: 20px;
+        }
+
+        .control-group {
+            margin-bottom: 20px;
+            background: #f8f9fa;
+            padding: 15px;
+            border-radius: 8px;
+            border: 1px solid #e9ecef;
+        }
+
+        .control-group label {
+            display: block;
+            font-weight: 700;
+            font-size: 0.9rem;
+            color: #0B1B3D;
+            margin-bottom: 8px;
+        }
+
+        .control-group select, 
+        .control-group input[type="range"] {
+            width: 100%;
+            padding: 8px;
+            border: 1px solid #ced4da;
+            border-radius: 4px;
+            font-size: 0.9rem;
+            background: white;
+        }
+
+        .range-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 5px;
+        }
+
+        .range-val {
+            font-family: monospace;
+            font-weight: bold;
+            color: #d93025;
+        }
+
+        .copy-btn {
+            background-color: #0B1B3D;
+            color: white;
+            border: none;
+            padding: 14px 20px;
+            border-radius: 8px;
+            cursor: pointer;
+            font-weight: 700;
+            font-size: 1rem;
+            transition: background 0.2s, transform 0.1s;
+            width: 100%;
+            margin-top: 10px;
+            border-bottom: 4px solid #061024;
+        }
+        .copy-btn:hover { background-color: #1557b0; }
+        .copy-btn:active { transform: translateY(2px); border-bottom-width: 2px; }
+        .copy-btn.copied { background-color: #0f9d58; border-color: #0a6c3c; }
+
+        #toast {
+            position: fixed;
+            bottom: 30px;
+            left: calc(50% - 210px);
+            transform: translateX(-50%);
+            background: #111;
+            color: #FDB813;
+            padding: 12px 24px;
+            border-radius: 8px;
+            font-weight: bold;
+            display: none;
+            box-shadow: 0 4px 16px rgba(0,0,0,0.2);
+            z-index: 10000;
+            border-left: 4px solid #FDB813;
+        }
+
+        /* ==========================================
+           Simulated App Inner Styles
+           ========================================== */
+        #sim-app {
+            display: flex;
+            flex-direction: column;
+            height: 100%;
+            width: 100%;
+            position: relative;
+        }
+
+        /* Layout Modes */
+        #sim-app.layout-split-top { flex-direction: column; }
+        #sim-app.layout-split-bottom { flex-direction: column-reverse; }
+        #sim-app.layout-floating-sheet { display: block; }
+
+        /* Sidebar styling */
+        #sim-sidebar {
+            background-color: #f8f9fa;
+            display: flex;
+            flex-direction: column;
+            transition: height 0.2s ease;
+            z-index: 1000;
+        }
+
+        #sim-app.layout-split-top #sim-sidebar,
+        #sim-app.layout-split-bottom #sim-sidebar {
+            width: 100%;
+            height: var(--sidebar-height, 40%);
+            border-bottom: 1px solid #dee2e6;
+        }
+
+        #sim-app.layout-split-bottom #sim-sidebar {
+            border-bottom: none;
+            border-top: 1px solid #dee2e6;
+        }
+
+        /* Floating Sheet specific styles */
+        #sim-app.layout-floating-sheet #sim-sidebar {
+            position: absolute;
+            bottom: 0;
+            left: 0;
+            right: 0;
+            height: var(--sidebar-height, 40%);
+            border-top: 2px solid #000;
+            border-radius: 20px 20px 0 0;
+            box-shadow: 0 -4px 20px rgba(0,0,0,0.15);
+        }
+        /* Add a visual drag handle indicator for floating sheet */
+        #sim-app.layout-floating-sheet #sim-sidebar::before {
+            content: "";
+            display: block;
+            width: 40px;
+            height: 4px;
+            background: rgba(0,0,0,0.2);
+            border-radius: 2px;
+            margin: 6px auto -10px auto;
+            z-index: 10;
+        }
+
+        #sim-sidebar header {
+            padding: var(--header-padding, 15px);
+            background-color: #FDB813;
+            border-bottom: 2px solid #000;
+            flex-shrink: 0;
+        }
+
+        #sim-sidebar header h1 {
+            font-size: var(--header-font-size, 1.2rem);
+            font-weight: 900;
+            color: #000;
+            text-transform: uppercase;
+            font-family: "Arial Black", sans-serif;
+            margin: 0;
+        }
+
+        #sim-sidebar header p {
+            font-size: var(--header-sub-font-size, 0.75rem);
+            color: #000;
+            font-weight: bold;
+            margin: 2px 0 0 0;
+        }
+
+        .sim-slider-container {
+            margin-top: 10px;
+            background: #000;
+            color: #fff;
+            padding: 8px;
+            border-radius: 4px;
+            font-size: 0.8rem;
+        }
+
+        .sim-slider-container label {
+            display: flex;
+            justify-content: space-between;
+            font-weight: bold;
+            margin-bottom: 4px;
+        }
+        .sim-slider-container span { color: #FDB813; }
+        .sim-slider-container input { width: 100%; accent-color: #FDB813; }
+
+        #sim-closure-list {
+            list-style: none;
+            overflow-y: auto;
+            flex-grow: 1;
+            margin: 0;
+            padding: 0;
+        }
+
+        #sim-closure-list li {
+            padding: var(--list-padding, 12px 15px);
+            border-bottom: 1px solid #ccc;
+            cursor: pointer;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+        }
+        #sim-closure-list li:hover { background-color: #fff3cd; }
+        #sim-closure-list li h3 {
+            font-size: var(--list-title-size, 0.95rem);
+            font-weight: 900;
+            text-transform: uppercase;
+            font-family: "Arial Black", sans-serif;
+            margin: 0;
+        }
+        #sim-closure-list li p {
+            font-size: var(--list-desc-size, 0.75rem);
+            color: #444;
+            margin: 2px 0 0 0;
+        }
+
+        /* Map styling */
+        #sim-map-container {
+            flex-grow: 1;
+            height: 100%;
+            width: 100%;
+            position: relative;
+        }
+        #sim-app.layout-floating-sheet #sim-map-container {
+            height: 100%;
+        }
+
+        #sim-map {
+            width: 100%;
+            height: 100%;
+        }
+
+        /* Legend styling */
+        .sim-map-legend {
+            position: absolute;
+            background: rgba(255, 255, 255, 0.95);
+            padding: 10px 12px;
+            border-radius: 6px;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.15);
+            z-index: 1000;
+            border-left: 4px solid #FDB813;
+            transition: all 0.2s ease;
+        }
+
+        /* Legend Postions */
+        .legend-pos-bottom-right { bottom: 15px; right: 15px; }
+        /* Adjust if floating sheet is active so it doesn't hide under the sheet */
+        #sim-app.layout-floating-sheet .legend-pos-bottom-right { 
+            bottom: calc(var(--sidebar-height, 40%) + 15px); 
+        }
+        
+        .legend-pos-top-right { top: 15px; right: 15px; }
+        .legend-pos-hidden { display: none !important; }
+
+        .sim-map-legend h4 {
+            margin: 0 0 6px 0;
+            color: #0B1B3D;
+            font-size: 0.75rem;
+            text-transform: uppercase;
+            border-bottom: 1px solid #dee2e6;
+            padding-bottom: 3px;
+        }
+        .sim-legend-item {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            margin-bottom: 5px;
+            font-size: 0.7rem;
+            color: #333;
+            font-weight: 600;
+        }
+        .sim-legend-item:last-child { margin-bottom: 0; }
+        .sim-legend-icon { width: 24px; height: 10px; display: flex; align-items: center; justify-content: center; }
+        .sim-legend-icon.closure-line { background: #d93025; height: 3px; border-radius: 1px; }
+        .sim-legend-icon.course-ribbon { background: rgba(0, 43, 73, 0.25); height: 8px; border-radius: 2px; position: relative; width: 24px; }
+        .sim-legend-icon.course-ribbon .ribbon-core { position: absolute; top: 2px; left: 0; right: 0; height: 3px; background: #fff; }
+        .sim-legend-icon.runner-swarm { gap: 2px; }
+        .sim-legend-icon.runner-swarm .dot { width: 4px; height: 4px; background: #FDB813; border-radius: 50%; }
+    </style>
+</head>
+<body>
+
+<div class="preview-section">
+    <div class="viewport-header">
+        <span>Device Preset: <strong id="lbl-device">iPhone 15 Pro</strong></span>
+        <span>Viewport: <strong id="lbl-dims">393 × 852</strong></span>
+    </div>
+    
+    <div class="device-frame" id="device-frame">
+        <div id="sim-app" class="layout-split-top">
+            <aside id="sim-sidebar">
+                <header>
+                    <h1>Brooklyn Half Closures</h1>
+                    <p>Select a street to view closure details.</p>
+                    <div class="sim-slider-container">
+                        <label for="sim-time-slider">Time: <span id="sim-time-display">7:00 AM</span></label>
+                        <input type="range" id="sim-time-slider" min="-1" max="900" value="420">
+                    </div>
+                </header>
+                <ul id="sim-closure-list">
+                    <!-- Populated via JS -->
+                </ul>
+            </aside>
+            <main id="sim-map-container">
+                <div id="sim-map"></div>
+                <div class="sim-map-legend legend-pos-bottom-right" id="sim-legend">
+                    <h4>Map Legend</h4>
+                    <div class="sim-legend-item">
+                        <div class="sim-legend-icon closure-line"></div>
+                        <span>Street closures</span>
+                    </div>
+                    <div class="sim-legend-item">
+                        <div class="sim-legend-icon course-ribbon"><div class="ribbon-core"></div></div>
+                        <span>Race course</span>
+                    </div>
+                    <div class="sim-legend-item">
+                        <div class="sim-legend-icon runner-swarm"><span class="dot"></span><span class="dot"></span><span class="dot"></span></div>
+                        <span>Running pack</span>
+                    </div>
+                </div>
+            </main>
+        </div>
+    </div>
+</div>
+
+<div class="control-panel">
+    <h2>Mobile Adapting Tuner</h2>
+    
+    <div class="control-group">
+        <label for="ctrl-device">Target Mobile Viewport</label>
+        <select id="ctrl-device">
+            <option value="393x852">iPhone 15 Pro (393×852)</option>
+            <option value="375x667">iPhone SE / 8 (375×667)</option>
+            <option value="360x640">Compact Android (360×640)</option>
+            <option value="430x932">iPhone 15 Pro Max (430×932)</option>
+        </select>
+    </div>
+
+    <div class="control-group">
+        <label for="ctrl-layout">Mobile Layout Strategy</label>
+        <select id="ctrl-layout">
+            <option value="split-top">Split Screen: Sidebar Top / Map Bottom</option>
+            <option value="split-bottom">Split Screen: Map Top / Sidebar Bottom</option>
+            <option value="floating-sheet">Floating Drawer: Map Full / Bottom Overlay</option>
+        </select>
+    </div>
+
+    <div class="control-group">
+        <div class="range-header">
+            <label for="ctrl-height" style="margin:0;">Sidebar Height Allocation</label>
+            <span class="range-val" id="lbl-height">40%</span>
+        </div>
+        <input type="range" id="ctrl-height" min="25" max="65" value="40" step="5">
+    </div>
+
+    <div class="control-group">
+        <label for="ctrl-density">List Item Touch Target Density</label>
+        <select id="ctrl-density">
+            <option value="compact">Compact (8px padding - Fits more data)</option>
+            <option value="normal" selected>Standard (12px padding - Balanced)</option>
+            <option value="touch">Touch-Optimized (16px padding - Easy tap)</option>
+        </select>
+    </div>
+
+    <div class="control-group">
+        <label for="ctrl-header">Header & Title Bar Scaling</label>
+        <select id="ctrl-header">
+            <option value="standard">Standard Size (Bold 1.5rem title)</option>
+            <option value="compact" selected>Compact Mode (1.2rem title, tighter gaps)</option>
+        </select>
+    </div>
+
+    <div class="control-group">
+        <label for="ctrl-legend">Map Legend Positioning</label>
+        <select id="ctrl-legend">
+            <option value="bottom-right">Bottom Right (Docked above sidebar)</option>
+            <option value="top-right">Top Right (Clear of sidebar controls)</option>
+            <option value="hidden">Hidden on Mobile (Maximize map area)</option>
+        </select>
+    </div>
+
+    <button class="copy-btn" id="copy-btn">Copy Implementation Prompt</button>
+</div>
+
+<div id="toast">Implementation prompt copied to clipboard!</div>
+
+<!-- Leaflet JS -->
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" crossorigin=""></script>
+<!-- Data Loading -->
+<script src="data.js"></script>
+<script>
+    // ==========================================
+    // Initialize Simulated View Map
+    // ==========================================
+    const map = L.map('sim-map', {
+        zoomControl: false // hide default zoom control to keep mobile view clean
+    }).setView([40.63806, -73.96357], 12);
+
+    L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/Canvas/World_Light_Gray_Base/MapServer/tile/{z}/{y}/{x}', {
+        attribution: 'Esri'
+    }).addTo(map);
+
+    // Add optional compact zoom control at top left
+    L.control.zoom({ position: 'topleft' }).addTo(map);
+
+    // Static representation of closures
+    const lineStyle = { color: '#d93025', weight: 3, opacity: 0.8 };
+    closuresData.forEach(item => {
+        if (Array.isArray(item.latlngs[0][0])) {
+            item.latlngs.forEach(subPath => L.polyline(subPath, lineStyle).addTo(map));
+        } else {
+            L.polyline(item.latlngs, lineStyle).addTo(map);
+        }
+    });
+
+    // Populate simulated closure list
+    const simList = document.getElementById('sim-closure-list');
+    closuresData.slice(0, 12).forEach(item => { // slice to avoid overloading small view DOM
+        const li = document.createElement('li');
+        li.innerHTML = `<h3>${item.street}</h3><p>${item.segment}</p>`;
+        li.addEventListener('click', () => {
+            document.querySelectorAll('#sim-closure-list li').forEach(el => el.style.backgroundColor = '');
+            li.style.backgroundColor = '#fff3cd';
+        });
+        simList.appendChild(li);
+    });
+
+    // ==========================================
+    // Interactivity & Reactive Tuning Logic
+    // ==========================================
+    const simApp = document.getElementById('sim-app');
+    const deviceFrame = document.getElementById('device-frame');
+    const simLegend = document.getElementById('sim-legend');
+    
+    const ctrlDevice = document.getElementById('ctrl-device');
+    const ctrlLayout = document.getElementById('ctrl-layout');
+    const ctrlHeight = document.getElementById('ctrl-height');
+    const ctrlDensity = document.getElementById('ctrl-density');
+    const ctrlHeader = document.getElementById('ctrl-header');
+    const ctrlLegend = document.getElementById('ctrl-legend');
+
+    const lblDevice = document.getElementById('lbl-device');
+    const lblDims = document.getElementById('lbl-dims');
+    const lblHeight = document.getElementById('lbl-height');
+
+    function applyUpdates() {
+        // 1. Device Dimensions
+        const [width, height] = ctrlDevice.value.split('x');
+        deviceFrame.style.width = `${width}px`;
+        deviceFrame.style.height = `${height}px`;
+        lblDims.innerText = `${width} × ${height}`;
+        lblDevice.innerText = ctrlDevice.options[ctrlDevice.selectedIndex].text.split('(')[0].trim();
+
+        // Trigger map invalidateSize so Leaflet adjusts correctly
+        setTimeout(() => map.invalidateSize(), 350);
+
+        // 2. Layout Strategy
+        simApp.className = `layout-${ctrlLayout.value}`;
+
+        // 3. Sidebar Height Allocation
+        const heightPct = ctrlHeight.value;
+        lblHeight.innerText = `${heightPct}%`;
+        simApp.style.setProperty('--sidebar-height', `${heightPct}%`);
+
+        // 4. List Density
+        if (ctrlDensity.value === 'compact') {
+            simApp.style.setProperty('--list-padding', '8px 12px');
+            simApp.style.setProperty('--list-title-size', '0.85rem');
+            simApp.style.setProperty('--list-desc-size', '0.7rem');
+        } else if (ctrlDensity.value === 'normal') {
+            simApp.style.setProperty('--list-padding', '12px 15px');
+            simApp.style.setProperty('--list-title-size', '0.95rem');
+            simApp.style.setProperty('--list-desc-size', '0.75rem');
+        } else {
+            simApp.style.setProperty('--list-padding', '16px 18px');
+            simApp.style.setProperty('--list-title-size', '1.05rem');
+            simApp.style.setProperty('--list-desc-size', '0.8rem');
+        }
+
+        // 5. Header Scaling
+        if (ctrlHeader.value === 'standard') {
+            simApp.style.setProperty('--header-padding', '20px');
+            simApp.style.setProperty('--header-font-size', '1.5rem');
+            simApp.style.setProperty('--header-sub-font-size', '0.85rem');
+        } else {
+            simApp.style.setProperty('--header-padding', '12px 15px');
+            simApp.style.setProperty('--header-font-size', '1.15rem');
+            simApp.style.setProperty('--header-sub-font-size', '0.75rem');
+        }
+
+        // 6. Legend Positioning
+        simLegend.className = `sim-map-legend legend-pos-${ctrlLegend.value}`;
+    }
+
+    // Listeners
+    ctrlDevice.addEventListener('change', applyUpdates);
+    ctrlLayout.addEventListener('change', applyUpdates);
+    ctrlHeight.addEventListener('input', applyUpdates);
+    ctrlDensity.addEventListener('change', applyUpdates);
+    ctrlHeader.addEventListener('change', applyUpdates);
+    ctrlLegend.addEventListener('change', applyUpdates);
+
+    // Initialize
+    applyUpdates();
+
+    // ==========================================
+    // Copy Implementation Prompt Logic
+    // ==========================================
+    const copyBtn = document.getElementById('copy-btn');
+    copyBtn.addEventListener('click', () => {
+        const layoutStrat = ctrlLayout.options[ctrlLayout.selectedIndex].text;
+        const sidebarHeight = ctrlHeight.value;
+        const listDensity = ctrlDensity.options[ctrlDensity.selectedIndex].text;
+        const headerScale = ctrlHeader.options[ctrlHeader.selectedIndex].text;
+        const legendPos = ctrlLegend.options[ctrlLegend.selectedIndex].text;
+
+        const prompt = `Please implement responsive mobile optimizations in \`styles.css\` inside a media query for screens below 768px (\`@media (max-width: 768px)\`). Apply the following specific tuning configurations:
+
+1. **Layout Strategy**: Apply **${layoutStrat}**. 
+   - Ensure the container stack layout flows cleanly based on this strategy.
+   - Set the sidebar container height allocation strictly to **${sidebarHeight}vh** (or % equivalent).
+
+2. **Touch Targets & Typography**:
+   - Implement **${listDensity}** for the sidebar list items to guarantee comfortable mobile interactions.
+   - Use **${headerScale}** for the main header to conserve vertical space for list visibility.
+
+3. **Map Legend**:
+   - Configure the legend positioning to **${legendPos}** on mobile viewports.
+   - If docked over the map, verify its \`z-index\` and layout bounds prevent overlap with interactive slider components or base zoom controls.`;
+
+        navigator.clipboard.writeText(prompt).then(() => {
+            copyBtn.classList.add('copied');
+            copyBtn.innerText = 'Prompt Copied Successfully!';
+            
+            const toast = document.getElementById('toast');
+            toast.style.display = 'block';
+            setTimeout(() => { 
+                toast.style.display = 'none';
+                copyBtn.classList.remove('copied');
+                copyBtn.innerText = 'Copy Implementation Prompt';
+            }, 3500);
+        }).catch(() => alert('Copy failed. Please try selecting the text manually.'));
+    });
+</script>
+</body>
+</html>

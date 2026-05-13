@@ -1,0 +1,718 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Runner Swarm Visual Tuner</title>
+    <!-- Leaflet CSS -->
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" crossorigin=""/>
+    <style>
+        :root {
+            --primary: #0B1B3D;
+            --accent: #FDB813;
+            --success: #0f9d58;
+            --bg: #f8f9fa;
+            --border: #dee2e6;
+            --text: #333;
+        }
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+            line-height: 1.6;
+            color: var(--text);
+            background-color: var(--bg);
+            margin: 0;
+            padding: 40px 20px;
+        }
+        .container {
+            max-width: 1300px;
+            margin: 0 auto;
+            background: #fff;
+            padding: 40px;
+            border-radius: 12px;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.05);
+            display: flex;
+            gap: 30px;
+        }
+        .controls {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            gap: 20px;
+            max-height: 680px;
+            overflow-y: auto;
+            padding-right: 15px;
+        }
+        .map-area {
+            flex: 1.6;
+            height: 680px;
+            border: 2px solid var(--primary);
+            border-radius: 8px;
+            overflow: hidden;
+            position: relative;
+            display: flex;
+            flex-direction: column;
+        }
+        .density-panel {
+            height: 120px;
+            background: #061024;
+            border-bottom: 3px solid var(--accent);
+            padding: 10px 20px;
+            display: flex;
+            flex-direction: column;
+        }
+        .density-header {
+            color: #fff;
+            font-size: 0.8rem;
+            font-weight: bold;
+            display: flex;
+            justify-content: space-between;
+            margin-bottom: 5px;
+        }
+        #density-canvas {
+            width: 100%;
+            flex-grow: 1;
+        }
+        h1 { color: var(--primary); margin-top: 0; font-family: "Arial Black", sans-serif; font-weight: 900; text-transform: uppercase; }
+        h2 { font-size: 1.1rem; color: var(--primary); margin-top: 10px; border-top: 1px solid var(--border); padding-top: 15px; text-transform: uppercase; letter-spacing: 0.5px;}
+        
+        .control-group {
+            display: flex;
+            flex-direction: column;
+            gap: 5px;
+        }
+        .control-group label {
+            font-weight: bold;
+            display: flex;
+            justify-content: space-between;
+            font-size: 0.9rem;
+        }
+        .control-group input[type="range"] {
+            width: 100%;
+            accent-color: var(--accent);
+        }
+        .control-group select {
+            padding: 8px;
+            border-radius: 4px;
+            border: 1px solid var(--border);
+            font-weight: bold;
+            background: #fff;
+        }
+        
+        .checkbox-group {
+            display: flex;
+            gap: 10px;
+            align-items: center;
+            font-weight: bold;
+            font-size: 0.9rem;
+        }
+        
+        .output-box {
+            background: #061024;
+            color: #fff;
+            padding: 15px;
+            border-radius: 6px;
+            font-family: monospace;
+            font-size: 0.8rem;
+            white-space: pre-wrap;
+            margin-top: 10px;
+            border-left: 4px solid var(--accent);
+        }
+        
+        .copy-btn {
+            background-color: var(--primary);
+            color: white;
+            border: none;
+            padding: 14px 20px;
+            border-radius: 6px;
+            cursor: pointer;
+            font-weight: 900;
+            transition: background 0.2s;
+            margin-top: 10px;
+            text-transform: uppercase;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            gap: 8px;
+        }
+        .copy-btn:hover { background-color: #16336e; }
+        .copy-btn.copied { background-color: var(--success); }
+        
+        #toast {
+            position: fixed;
+            bottom: 30px;
+            right: 30px;
+            background: var(--primary);
+            color: white;
+            padding: 12px 24px;
+            border-radius: 8px;
+            border-left: 6px solid var(--accent);
+            display: none;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.2);
+            z-index: 10000;
+            font-weight: bold;
+        }
+
+        /* Live simulation state overlay */
+        .sim-badge {
+            position: absolute;
+            top: 15px;
+            left: 60px;
+            background: var(--primary);
+            color: var(--accent);
+            padding: 6px 12px;
+            border-radius: 20px;
+            font-size: 0.75rem;
+            font-weight: bold;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.2);
+            z-index: 1000;
+        }
+    </style>
+</head>
+<body>
+
+<div class="container">
+    <div class="controls">
+        <h1>Runner Swarm Tuner</h1>
+        <p style="font-size: 0.85rem; color: #666; margin-top: -15px;">Dial in node visualization physics for the 28,000+ marathon grid.</p>
+        
+        <!-- Master Temporal Controls -->
+        <div class="control-group" style="background: #f1f3f4; padding: 12px; border-radius: 6px;">
+            <label for="time-in" style="color: var(--primary);">Simulated Race Time: <span id="time-val">07:30 AM</span></label>
+            <input type="range" id="time-in" min="0" max="270" step="1" value="30">
+        </div>
+
+        <h2>Node Rendering Physics</h2>
+        
+        <div class="control-group">
+            <label for="shape-in">Node Primitive Primitive Primitive Shape</label>
+            <select id="shape-in">
+                <option value="square">Square Primitive (High-Speed fillRect)</option>
+                <option value="circle">Circle Primitive (Standard arc)</option>
+            </select>
+        </div>
+
+        <div class="control-group">
+            <label for="size-in">Individual Node Size: <span id="size-val">2</span>px</label>
+            <input type="range" id="size-in" min="1" max="80" step="1" value="2">
+        </div>
+
+        <div class="control-group">
+            <label for="zoom-scale-in">Zoom Size Scaling Exponent: <span id="zoom-scale-val">1.5</span>x</label>
+            <input type="range" id="zoom-scale-in" min="1.0" max="2.5" step="0.1" value="1.5">
+            <span style="font-size: 0.75rem; color: #888;">Scales node diameter upwards dynamically upon zooming in to maintain physical geographic mapping coverage.</span>
+        </div>
+
+        <div class="control-group">
+            <label for="opacity-in">Node Base Opacity: <span id="opacity-val">0.25</span></label>
+            <input type="range" id="opacity-in" min="0.05" max="1.0" step="0.05" value="0.25">
+            <span style="font-size: 0.75rem; color: #888;">Low opacity creates a gorgeous additive density cloud where node groups overlap.</span>
+        </div>
+
+        <div class="control-group">
+            <label for="color-in">Swarm Color Palette</label>
+            <select id="color-in">
+                <option value="#FDB813">Vibrant Yellow (#FDB813)</option>
+                <option value="#00e5ff">Electric Cyan (#00e5ff)</option>
+                <option value="#00ff88">Neon Mint (#00ff88)</option>
+                <option value="#ff5500">Sunset Orange (#ff5500)</option>
+            </select>
+        </div>
+
+        <h2>Macro Pack Dynamics</h2>
+
+        <div class="control-group">
+            <label for="spacing-in">Longitudinal Pack Spacing Stretch: <span id="spacing-val">1.0</span>x</label>
+            <input type="range" id="spacing-in" min="1.0" max="20.0" step="0.5" value="1.0">
+            <span style="font-size: 0.75rem; color: #888;">Stretches out speed differentials along the race line to unbunch overlapping nodes.</span>
+        </div>
+
+        <div class="control-group">
+            <label for="scatter-in">Road Width Scatter (Jitter): <span id="scatter-val">15</span></label>
+            <input type="range" id="scatter-in" min="0" max="500" step="5" value="15">
+            <span style="font-size: 0.75rem; color: #888;">Controls how naturally runners spread across physical multilane street width.</span>
+        </div>
+
+        <div class="control-group">
+            <label for="glow-in">Global Shadow Glow Blur: <span id="glow-val">0</span>px</label>
+            <input type="range" id="glow-in" min="0" max="100" step="5" value="0">
+            <span style="font-size: 0.75rem; color: #d93025;">Warning: High glow alongside 28,000+ nodes can impact frame rates.</span>
+        </div>
+
+        <div class="checkbox-group" style="margin-top: 5px;">
+            <input type="checkbox" id="limit-nodes">
+            <label for="limit-nodes">Limit to 4,000 Nodes (Optimize Rendering Preview)</label>
+        </div>
+
+        <h2>Generated Integration Blueprint</h2>
+        <div class="output-box" id="config-output">/* Blueprint string will load dynamically */</div>
+        
+        <button class="copy-btn" id="copy-btn">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path></svg>
+            Copy Swarm Blueprint Prompt
+        </button>
+    </div>
+    
+    <div class="map-area">
+        <div class="density-panel">
+            <div class="density-header">
+                <span>Live Longitudinal Course Density (Historical Bell Curve Wave)</span>
+                <span style="color: var(--accent);">Mile 0 to 13.1</span>
+            </div>
+            <canvas id="density-canvas"></canvas>
+        </div>
+        <div style="position: relative; flex-grow: 1;">
+            <div class="sim-badge" id="status-badge" style="top: 15px; left: 15px;">🏃 Mounting Swarm Physics...</div>
+            <div id="map" style="width: 100%; height: 100%;"></div>
+        </div>
+    </div>
+</div>
+
+<div id="toast">Blueprint copied! Paste into chat to update app.js node styles.</div>
+
+<!-- Leaflet JS -->
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" crossorigin=""></script>
+<script>
+    // Shared Core Data
+    let fullFieldRunners = [];
+    let courseWaypoints = [];
+    let courseDistances = [];
+    let isSimReady = false;
+
+    // Custom Overlay Layer Definition
+    const RunnerCanvasOverlay = L.Layer.extend({
+        onAdd: function(map) {
+            this._map = map;
+            this._canvas = L.DomUtil.create('canvas', 'leaflet-runner-overlay');
+            this._canvas.style.position = 'absolute';
+            this._canvas.style.top = 0;
+            this._canvas.style.left = 0;
+            this._canvas.style.pointerEvents = 'none';
+            this._canvas.style.zIndex = 650;
+            
+            map.getPanes().overlayPane.appendChild(this._canvas);
+            map.on('moveend', this._reset, this);
+            map.on('resize', this._reset, this);
+            this._reset();
+        },
+        onRemove: function(map) {
+            map.getPanes().overlayPane.removeChild(this._canvas);
+            map.off('moveend', this._reset, this);
+            map.off('resize', this._reset, this);
+        },
+        _reset: function() {
+            const size = this._map.getSize();
+            this._canvas.width = size.x;
+            this._canvas.height = size.y;
+            const topLeft = this._map.containerPointToLayerPoint([0, 0]);
+            L.DomUtil.setPosition(this._canvas, topLeft);
+        },
+        getCanvas: function() { return this._canvas; }
+    });
+
+    // Precompute distances scaled to exactly 13.1 miles
+    function computeCourseMetrics(coords) {
+        function getDist(lat1, lon1, lat2, lon2) {
+            const R = 3958.8;
+            const dLat = (lat2 - lat1) * Math.PI / 180;
+            const dLon = (lon2 - lon1) * Math.PI / 180;
+            const a = Math.sin(dLat/2) * Math.sin(dLat/2) +
+                      Math.cos(lat1 * Math.PI / 180) * Math.cos(lat2 * Math.PI / 180) * 
+                      Math.sin(dLon/2) * Math.sin(dLon/2); 
+            return R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a)); 
+        }
+        let cumDist = [0];
+        let total = 0;
+        for (let i = 1; i < coords.length; i++) {
+            total += getDist(coords[i-1][0], coords[i-1][1], coords[i][0], coords[i][1]);
+            cumDist.push(total);
+        }
+        const scale = 13.1 / total;
+        for (let i = 0; i < cumDist.length; i++) cumDist[i] *= scale;
+        return { cumDist, totalDist: 13.1 };
+    }
+
+    // Geopositioning helper
+    function getPointAtDistance(dist, coords, cumDist) {
+        if (dist <= 0) return coords[0];
+        if (dist >= 13.1) return coords[coords.length - 1];
+        for (let i = 0; i < cumDist.length - 1; i++) {
+            if (dist >= cumDist[i] && dist <= cumDist[i+1]) {
+                const f = (dist - cumDist[i]) / (cumDist[i+1] - cumDist[i]);
+                return [
+                    coords[i][0] + f * (coords[i+1][0] - coords[i][0]),
+                    coords[i][1] + f * (coords[i+1][1] - coords[i][1])
+                ];
+            }
+        }
+        return coords[coords.length - 1];
+    }
+
+    function parseRunnerTime(timeStr) {
+        if (!timeStr) return 0;
+        const p = timeStr.split(':').map(Number);
+        if (p.length === 3) return p[0] * 60 + p[1] + p[2] / 60;
+        if (p.length === 2) return p[0] + p[1] / 60;
+        return 0;
+    }
+
+    // Initialize Map Architecture
+    const map = L.map('map', { zoomControl: true }).setView([40.6200, -73.9650], 13);
+    L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/Canvas/World_Light_Gray_Base/MapServer/tile/{z}/{y}/{x}', {
+        maxZoom: 19, attribution: 'Esri'
+    }).addTo(map);
+
+    const overlayLayer = new RunnerCanvasOverlay();
+    map.addLayer(overlayLayer);
+
+    // Setup Event Pipeline
+    const timeIn = document.getElementById('time-in');
+    const shapeIn = document.getElementById('shape-in');
+    const sizeIn = document.getElementById('size-in');
+    const zoomScaleIn = document.getElementById('zoom-scale-in');
+    const opacityIn = document.getElementById('opacity-in');
+    const colorIn = document.getElementById('color-in');
+    const spacingIn = document.getElementById('spacing-in');
+    const scatterIn = document.getElementById('scatter-in');
+    const glowIn = document.getElementById('glow-in');
+    const limitNodes = document.getElementById('limit-nodes');
+
+    const timeVal = document.getElementById('time-val');
+    const sizeVal = document.getElementById('size-val');
+    const zoomScaleVal = document.getElementById('zoom-scale-val');
+    const opacityVal = document.getElementById('opacity-val');
+    const spacingVal = document.getElementById('spacing-val');
+    const scatterVal = document.getElementById('scatter-val');
+    const glowVal = document.getElementById('glow-val');
+    const configOutput = document.getElementById('config-output');
+    const statusBadge = document.getElementById('status-badge');
+
+    // Format Time string helper
+    function formatFriendlyTime(mins) {
+        const totalMins = 7 * 60 + mins;
+        const hours = Math.floor(totalMins / 60);
+        const remainMins = totalMins % 60;
+        const period = hours >= 12 ? "PM" : "AM";
+        const displayHour = hours > 12 ? hours - 12 : (hours === 0 ? 12 : hours);
+        return `${displayHour.toString().padStart(2, '0')}:${remainMins.toString().padStart(2, '0')} ${period}`;
+    }
+
+    // Hex to RGBA string helper
+    function hexToRgba(hex, opacity) {
+        let c;
+        if(/^#([A-Fa-f0-9]{3}){1,2}$/.test(hex)){
+            c = hex.substring(1).split('');
+            if(c.length == 3){
+                c= [c[0], c[0], c[1], c[1], c[2], c[2]];
+            }
+            c = '0x'+c.join('');
+            return 'rgba('+[(c>>16)&255, (c>>8)&255, c&255].join(', ')+', '+opacity+')';
+        }
+        return 'rgba(253, 184, 19, '+opacity+')';
+    }
+
+    // Main Tuning Update Loop
+    function updateTuning() {
+        const time = parseInt(timeIn.value, 10);
+        const shape = shapeIn.value;
+        const size = parseFloat(sizeIn.value);
+        const zoomScale = parseFloat(zoomScaleIn.value);
+        const opacity = parseFloat(opacityIn.value);
+        const color = colorIn.value;
+        const spacing = parseFloat(spacingIn.value);
+        const scatter = parseInt(scatterIn.value, 10);
+        const glow = parseInt(glowIn.value, 10);
+        const limited = limitNodes.checked;
+
+        // Update string tags
+        timeVal.textContent = formatFriendlyTime(time);
+        sizeVal.textContent = size;
+        zoomScaleVal.textContent = zoomScale.toFixed(1);
+        opacityVal.textContent = opacity.toFixed(2);
+        spacingVal.textContent = spacing.toFixed(1);
+        scatterVal.textContent = scatter;
+        glowVal.textContent = glow;
+
+        const activeCount = limited ? Math.min(4000, fullFieldRunners.length) : fullFieldRunners.length;
+        statusBadge.innerHTML = `🏃 Node System Load: ${activeCount.toLocaleString()} active points`;
+
+        // Generate Output String
+        const scatterFactor = (scatter * 0.00001).toFixed(6);
+        const promptBlueprint = `Please update the Option 1 Route Particle Swarm pipeline inside app.js to implement our dialed-in visual parameters:
+
+**Tuned Node Physics Blueprint:**
+- **Rendering primitive primitive Primitive Shape**: ${shape === 'square' ? 'Square (Optimized `ctx.fillRect`)' : 'Circle (`ctx.arc`)'}
+- **Base Size**: ${size}px
+- **Zoom Size Scaling Exponent**: ${zoomScale.toFixed(1)}x per level
+- **Base Opacity**: ${opacity}
+- **Primary Fill Color**: ${color}
+- **Longitudinal Spacing Exaggeration**: ${spacing.toFixed(1)}x
+- **Shadow Glow Blur**: ${glow}px
+- **Multi-lane Scatter Jitter**: ${scatterFactor}
+
+**Specific Execution Logic:**
+Inside the inner \`requestAnimationFrame\` render loop, assign:
+\`\`\`javascript
+ctx.fillStyle = '${hexToRgba(color, opacity)}';
+${glow > 0 ? `ctx.shadowColor = '${color}';\nctx.shadowBlur = ${glow};` : '// Shadow rendering disabled for optimized execution speed'}
+\`\`\`
+And evaluate runner field positions using our dialed-in pacing stretch logic alongside dynamic zoom size scaling:
+\`\`\`javascript
+const scatterFactor = ${scatterFactor};
+const spacingStretch = ${spacing.toFixed(1)};
+const meanSpeed = 13.1 / 130; // Reference pack average pace
+
+// Evaluate active node scaling relative to current map camera zoom delta
+const currentZoom = map.getZoom();
+const baseZoomPower = 13; // Reference scale base level
+const zoomScalePower = ${zoomScale.toFixed(1)};
+const activeNodeSize = Math.max(0.5, ${size} * Math.pow(zoomScalePower, currentZoom - baseZoomPower));
+const rRadius = activeNodeSize / 2;
+
+for (let i = 0; i < swarmRunners.length; i++) {
+    const r = swarmRunners[i];
+    // Stretch spacing differentials along the track
+    const stretchedSpeed = meanSpeed + (r.speed - meanSpeed) * spacingStretch;
+    const dist = stretchedSpeed * raceElapsedMins;
+
+    if (dist > 0 && dist <= 13.1) {
+        const baseCoord = getPointAtDistance(dist, courseCoords, courseCumDist);
+        const lat = baseCoord[0] + r.scatterX * scatterFactor;
+        const lng = baseCoord[1] + r.scatterY * scatterFactor;
+
+        // Geometry projection
+        const layerPt = map.latLngToLayerPoint([lat, lng]);
+        const pixelX = layerPt.x - topLeft.x;
+        const pixelY = layerPt.y - topLeft.y;
+
+        ${shape === 'square' ? `// Pure square fillRect optimization for maximum field rendering performance
+        ctx.fillRect(pixelX - rRadius, pixelY - rRadius, activeNodeSize, activeNodeSize);` : `// Circle primitive drawing
+        ctx.beginPath();
+        ctx.arc(pixelX, pixelY, rRadius, 0, Math.PI * 2);
+        ctx.fill();`}
+    }
+}
+\`\`\``;
+
+        configOutput.textContent = promptBlueprint;
+    }
+
+    // Core Setup Workflow
+    async function initializeArchitecture() {
+        const fallbackRoute = [
+            // Mile 1: Start Washington Ave heading south
+            [40.6712, -73.9628], [40.6680, -73.9620], [40.6645, -73.9615],
+            // Turn right onto Empire Blvd
+            [40.6630, -73.9610],
+            // Turn right onto Flatbush Ave heading north to Grand Army Plaza (Mile 1.5)
+            [40.6680, -73.9650], [40.6728, -73.9701],
+            // Mile 2: Proceed around Grand Army Plaza heading south on Flatbush Ave
+            [40.6680, -73.9650], [40.6630, -73.9610],
+            // Mile 3: Turn right onto Ocean Ave, then right onto Parkside Ave
+            [40.6590, -73.9612], [40.6560, -73.9615], [40.6545, -73.9662], [40.6530, -73.9710],
+            // Mile 4: Enter Prospect Park at Machate Circle onto East Drive
+            [40.6560, -73.9670], [40.6600, -73.9650], [40.6650, -73.9655], [40.6700, -73.9680],
+            // Miles 5-6: Counter-clockwise loop exiting onto Prospect Park Southwest to Machate Circle
+            [40.6660, -73.9730], [40.6600, -73.9750], [40.6550, -73.9740], [40.6530, -73.9710],
+            // Mile 7: Head south down Fort Hamilton Parkway onto Ocean Parkway
+            // Miles 8-12: Proceed onto Ocean Parkway heading south toward Coney Island
+            [40.6400, -73.9700], [40.6200, -73.9690], [40.6000, -73.9680], [40.5840, -73.9670], [40.5760, -73.9700],
+            // Mile 13-Finish: Turn right onto Surf Ave, left onto W 10th Street, up ramp to Boardwalk heading right (west)
+            [40.5755, -73.9740], [40.5750, -73.9780], [40.5730, -73.9775], [40.5725, -73.9800]
+        ];
+
+        try {
+            // Mapping literal physical course description: Washington Ave -> Empire Blvd -> Flatbush Ave -> Grand Army Plaza loop -> Ocean Ave -> Parkside Ave -> Prospect Park Loop -> Ocean Parkway -> Surf Ave -> W 10th St -> Boardwalk
+            const wpStr = "-73.9628,40.6712;-73.9615,40.6645;-73.9610,40.6630;-73.9701,40.6728;-73.9610,40.6630;-73.9615,40.6560;-73.9710,40.6530;-73.9650,40.6620;-73.9680,40.6700;-73.9750,40.6600;-73.9710,40.6530;-73.9670,40.5840;-73.9700,40.5760;-73.9780,40.5750;-73.9775,40.5730;-73.9800,40.5725";
+            const routeRes = await fetch(`https://router.project-osrm.org/route/v1/cycling/${wpStr}?overview=full&geometries=geojson`);
+            const routeData = await routeRes.json();
+            if (routeData.routes && routeData.routes[0]) {
+                courseWaypoints = routeData.routes[0].geometry.coordinates.map(c => [c[1], c[0]]);
+            } else courseWaypoints = fallbackRoute;
+        } catch (e) { courseWaypoints = fallbackRoute; }
+
+        const metrics = computeCourseMetrics(courseWaypoints);
+        courseDistances = metrics.cumDist;
+
+        // Box-Muller transform to map uniform math variables to a perfect normal (Gaussian) bell distribution
+        function getGaussianRandom() {
+            let u = 0, v = 0;
+            while(u === 0) u = Math.random();
+            while(v === 0) v = Math.random();
+            return Math.sqrt( -2.0 * Math.log( u ) ) * Math.cos( 2.0 * Math.PI * v );
+        }
+
+        try {
+            const resRes = await fetch('brooklyn_half_2025_results.json');
+            const results = await resRes.json();
+            for (let i = 0; i < results.length; i++) {
+                const mins = parseRunnerTime(results[i].overallTime);
+                if (mins > 0) {
+                    fullFieldRunners.push({
+                        speed: 13.1 / mins,
+                        // Scaled by 0.25 so ~95% of nodes fall within standard visual boundary width but tightly packed into a Gaussian core
+                        scatterX: getGaussianRandom() * 0.25,
+                        scatterY: getGaussianRandom() * 0.25
+                    });
+                }
+            }
+        } catch (e) {
+            for (let i = 0; i < 25000; i++) {
+                const finishMins = Math.max(65, 130 + (Math.random() + Math.random() + Math.random() - 1.5) * 40);
+                fullFieldRunners.push({
+                    speed: 13.1 / finishMins,
+                    scatterX: getGaussianRandom() * 0.25,
+                    scatterY: getGaussianRandom() * 0.25
+                });
+            }
+        }
+
+        isSimReady = true;
+        updateTuning();
+        requestAnimationFrame(renderSystemLoop);
+    }
+
+    // High-Performance System Render Pipeline
+    function renderSystemLoop() {
+        if (isSimReady && overlayLayer.getCanvas()) {
+            const canvas = overlayLayer.getCanvas();
+            const ctx = canvas.getContext('2d');
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+            const time = parseInt(timeIn.value, 10);
+            const shape = shapeIn.value;
+            const size = parseFloat(sizeIn.value);
+            const opacity = parseFloat(opacityIn.value);
+            const color = colorIn.value;
+            const spacing = parseFloat(spacingIn.value);
+            const scatter = parseInt(scatterIn.value, 10);
+            const glow = parseInt(glowIn.value, 10);
+            const limited = limitNodes.checked;
+
+            if (time > 0) {
+                ctx.fillStyle = hexToRgba(color, opacity);
+                if (glow > 0) {
+                    ctx.shadowColor = color;
+                    ctx.shadowBlur = glow;
+                }
+
+                const topLeft = map.containerPointToLayerPoint([0, 0]);
+                const scatterFactor = scatter * 0.00001;
+                const meanSpeed = 13.1 / 130; // Anchor for spacing stretch
+                
+                // Apply Real-time Dynamic Zoom Level Size Scaling
+                const currentZoom = map.getZoom();
+                const baseZoomPower = 13;
+                const zoomScalePower = parseFloat(zoomScaleIn.value);
+                const activeNodeSize = Math.max(0.5, size * Math.pow(zoomScalePower, currentZoom - baseZoomPower));
+                const rRadius = activeNodeSize / 2;
+
+                const renderLimit = limited ? Math.min(4000, fullFieldRunners.length) : fullFieldRunners.length;
+                const step = limited ? Math.floor(fullFieldRunners.length / renderLimit) : 1;
+
+                for (let i = 0; i < fullFieldRunners.length; i += step) {
+                    const r = fullFieldRunners[i];
+                    // Exaggerate field separation spacing
+                    const stretchedSpeed = meanSpeed + (r.speed - meanSpeed) * spacing;
+                    const dist = stretchedSpeed * time;
+
+                    if (dist > 0 && dist <= 13.1) {
+                        const baseCoord = getPointAtDistance(dist, courseWaypoints, courseDistances);
+                        const lat = baseCoord[0] + r.scatterX * scatterFactor;
+                        const lng = baseCoord[1] + r.scatterY * scatterFactor;
+
+                        const layerPt = map.latLngToLayerPoint([lat, lng]);
+                        const pixelX = layerPt.x - topLeft.x;
+                        const pixelY = layerPt.y - topLeft.y;
+
+                        if (pixelX >= -5 && pixelX <= canvas.width + 5 &&
+                            pixelY >= -5 && pixelY <= canvas.height + 5) {
+                            
+                            if (shape === 'square') {
+                                ctx.fillRect(pixelX - rRadius, pixelY - rRadius, activeNodeSize, activeNodeSize);
+                            } else {
+                                ctx.beginPath();
+                                ctx.arc(pixelX, pixelY, rRadius, 0, Math.PI * 2);
+                                ctx.fill();
+                            }
+                        }
+                    }
+                }
+                if (glow > 0) ctx.shadowBlur = 0;
+
+                // Render Live Longitudinal Histogram directly above the map to explicitly prove the Bell Curve pack formation
+                const dCanvas = document.getElementById('density-canvas');
+                if (dCanvas) {
+                    if (dCanvas.width !== dCanvas.clientWidth) dCanvas.width = dCanvas.clientWidth;
+                    if (dCanvas.height !== dCanvas.clientHeight) dCanvas.height = dCanvas.clientHeight;
+                    
+                    const dCtx = dCanvas.getContext('2d');
+                    dCtx.clearRect(0, 0, dCanvas.width, dCanvas.height);
+                    
+                    // Bucket runners into 50 continuous course routing sections
+                    const numBins = 50;
+                    const bins = new Array(numBins).fill(0);
+                    let maxPossible = fullFieldRunners.length / 12; // Scaling divisor for clean vertical display
+                    
+                    for (let i = 0; i < fullFieldRunners.length; i++) {
+                        const r = fullFieldRunners[i];
+                        const stretchedSpeed = meanSpeed + (r.speed - meanSpeed) * spacing;
+                        const dist = stretchedSpeed * time;
+                        if (dist > 0 && dist < 13.1) {
+                            const binIdx = Math.min(numBins - 1, Math.floor((dist / 13.1) * numBins));
+                            bins[binIdx]++;
+                        }
+                    }
+                    
+                    // Plot color-synced density bars
+                    const barW = dCanvas.width / numBins;
+                    dCtx.fillStyle = color;
+                    for (let b = 0; b < numBins; b++) {
+                        const count = bins[b];
+                        if (count > 0) {
+                            const h = Math.min(dCanvas.height - 5, (count / maxPossible) * (dCanvas.height - 15));
+                            const x = b * barW;
+                            const y = dCanvas.height - h;
+                            dCtx.fillRect(x + 1, y, barW - 2, h);
+                        }
+                    }
+                }
+            }
+        }
+        requestAnimationFrame(renderSystemLoop);
+    }
+
+    // Attach hooks
+    timeIn.addEventListener('input', updateTuning);
+    shapeIn.addEventListener('change', updateTuning);
+    sizeIn.addEventListener('input', updateTuning);
+    zoomScaleIn.addEventListener('input', updateTuning);
+    opacityIn.addEventListener('input', updateTuning);
+    colorIn.addEventListener('change', updateTuning);
+    spacingIn.addEventListener('input', updateTuning);
+    scatterIn.addEventListener('input', updateTuning);
+    glowIn.addEventListener('input', updateTuning);
+    limitNodes.addEventListener('change', updateTuning);
+
+    // Trigger Setup
+    window.onload = initializeArchitecture;
+
+    // Copy Prompt execution
+    document.getElementById('copy-btn').addEventListener('click', () => {
+        const text = configOutput.textContent;
+        navigator.clipboard.writeText(text).then(() => {
+            const btn = document.getElementById('copy-btn');
+            btn.classList.add('copied');
+            btn.innerHTML = 'Copied Blueprint Prompt!';
+            
+            const toast = document.getElementById('toast');
+            toast.style.display = 'block';
+            setTimeout(() => {
+                toast.style.display = 'none';
+                btn.classList.remove('copied');
+                btn.innerHTML = '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path></svg> Copy Swarm Blueprint Prompt';
+            }, 3500);
+        }).catch(() => alert("Clipboard write blocked. Please copy blueprint text manually."));
+    });
+</script>
+</body>
+</html>

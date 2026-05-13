@@ -1,0 +1,219 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Red Closure Pattern Directions</title>
+    <!-- Leaflet CSS -->
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" crossorigin=""/>
+    <style>
+        :root {
+            --primary: #d93025;
+            --bg: #f8f9fa;
+            --border: #dee2e6;
+        }
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+            line-height: 1.6;
+            color: #333;
+            background-color: var(--bg);
+            margin: 0;
+            padding: 40px 20px;
+        }
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            background: #fff;
+            padding: 40px;
+            border-radius: 12px;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.05);
+        }
+        h1 { color: var(--primary); border-bottom: 2px solid var(--border); padding-bottom: 10px; }
+        h2 { color: #202124; margin-top: 30px; }
+        
+        .directions-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(320px, 1fr));
+            gap: 30px;
+            margin-top: 20px;
+        }
+        .direction-card {
+            border: 1px solid var(--border);
+            border-radius: 10px;
+            overflow: hidden;
+            display: flex;
+            flex-direction: column;
+            background: #fff;
+            transition: transform 0.2s;
+        }
+        .direction-card:hover {
+            transform: translateY(-4px);
+            box-shadow: 0 8px 12px rgba(0,0,0,0.1);
+        }
+        .mini-map {
+            height: 220px;
+            width: 100%;
+            background: #e9ecef;
+        }
+        .card-content {
+            padding: 20px;
+            display: flex;
+            flex-direction: column;
+            flex-grow: 1;
+        }
+        .card-content h3 { margin-top: 0; color: #1f2937; }
+        .card-content p { font-size: 0.9rem; color: #4b5563; flex-grow: 1; }
+        
+        .copy-btn {
+            margin-top: 15px;
+            background-color: var(--primary);
+            color: white;
+            border: none;
+            padding: 10px 15px;
+            border-radius: 6px;
+            cursor: pointer;
+            font-weight: 600;
+            transition: background 0.2s;
+        }
+        .copy-btn:hover { background-color: #a51d15; }
+        .copy-btn.copied { background-color: #0f9d58; }
+        
+        #toast {
+            position: fixed;
+            bottom: 30px;
+            right: 30px;
+            background: #333;
+            color: white;
+            padding: 12px 24px;
+            border-radius: 8px;
+            display: none;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+            z-index: 10000;
+        }
+
+        /* CSS Animation for Direction 3 */
+        @keyframes crawl {
+            to {
+                stroke-dashoffset: -40;
+            }
+        }
+        .crawling-dashes {
+            animation: crawl 2s linear infinite;
+        }
+    </style>
+</head>
+<body>
+
+<div class="container">
+    <header>
+        <h1>Red Street Closure Patterns</h1>
+    </header>
+
+    <section>
+        <p>To better indicate restricted areas, I have shifted the overlay palette back to primary red and explored three pattern treatments to enhance the visual impact of the closures. Review the options below on the minimalist Esri grid and copy your favorite prompt.</p>
+
+        <div class="directions-grid">
+            <!-- Direction 1 -->
+            <div class="direction-card">
+                <div id="map-dir1" class="mini-map"></div>
+                <div class="card-content">
+                    <h3>Direction 1: Solid Red Glow</h3>
+                    <p>Classic safety visualization. Uses a thick soft red base with a sharp intense core. Zero noise, high authority, and clean alignment with the minimalist base map.</p>
+                    <button class="copy-btn" onclick="copyPatternPrompt(1, this)">Copy Prompt</button>
+                </div>
+            </div>
+
+            <!-- Direction 2 -->
+            <div class="direction-card">
+                <div id="map-dir2" class="mini-map"></div>
+                <div class="card-content">
+                    <h3>Direction 2: Red & White Barrier Tape</h3>
+                    <p>Simulates physical security barriers. Renders a thick red base with an overlapping white dashed sequence to recreate the classic appearance of restricted site tape.</p>
+                    <button class="copy-btn" onclick="copyPatternPrompt(2, this)">Copy Prompt</button>
+                </div>
+            </div>
+
+            <!-- Direction 3 -->
+            <div class="direction-card">
+                <div id="map-dir3" class="mini-map"></div>
+                <div class="card-content">
+                    <h3>Direction 3: Animated Crawling Dashes</h3>
+                    <p>Uses active motion to command attention. Applies a continuous CSS marquee animation to a heavy dashed red stroke, indicating a dynamic, active restriction in progress.</p>
+                    <button class="copy-btn" onclick="copyPatternPrompt(3, this)">Copy Prompt</button>
+                </div>
+            </div>
+        </div>
+    </section>
+</div>
+
+<div id="toast">Prompt copied to clipboard! Paste it back into the chat.</div>
+
+<!-- Leaflet JS -->
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" crossorigin=""></script>
+<script>
+    const sampleCoords = [[40.6560, -73.9615], [40.6530, -73.9710]];
+    const mapCenter = [40.6545, -73.9662];
+
+    function setupDemoMap(id, styleAction) {
+        const map = L.map(id, { zoomControl: false, dragging: false, scrollWheelZoom: false }).setView(mapCenter, 15);
+        // Using the chosen Esri Light Gray Canvas for continuity
+        L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/Canvas/World_Light_Gray_Base/MapServer/tile/{z}/{y}/{x}', {
+            attribution: 'Esri'
+        }).addTo(map);
+        styleAction(map);
+        return map;
+    }
+
+    document.addEventListener('DOMContentLoaded', () => {
+        // Option 1: Solid Red Glow
+        setupDemoMap('map-dir1', (map) => {
+            L.polyline(sampleCoords, { color: '#d93025', weight: 12, opacity: 0.3 }).addTo(map);
+            L.polyline(sampleCoords, { color: '#d93025', weight: 4, opacity: 1.0 }).addTo(map);
+        });
+
+        // Option 2: Barrier Tape
+        setupDemoMap('map-dir2', (map) => {
+            L.polyline(sampleCoords, { color: '#d93025', weight: 8, opacity: 1.0 }).addTo(map);
+            L.polyline(sampleCoords, { color: '#ffffff', weight: 8, opacity: 1.0, dashArray: '12, 12' }).addTo(map);
+        });
+
+        // Option 3: Animated Dashes
+        setupDemoMap('map-dir3', (map) => {
+            L.polyline(sampleCoords, { 
+                color: '#d93025', 
+                weight: 6, 
+                opacity: 1.0,
+                dashArray: '20, 20',
+                className: 'crawling-dashes'
+            }).addTo(map);
+        });
+    });
+
+    const prompts = {
+        1: `Please update the map styling in app.js to follow "Direction 1: Solid Red Glow". Modify the closure rendering logic to draw two overlapping lines per segment: an outer glowing line using primary red ('#d93025') with a weight of 12 and low opacity (0.3), and a central sharp core line using the same red ('#d93025') with a weight of 4 and full opacity.`,
+        
+        2: `Please update the map styling in app.js to follow "Direction 2: Red & White Barrier Tape". Modify the closure rendering logic to draw two overlapping lines per segment: a base layer line using primary red ('#d93025') with a weight of 8; and an overlay line using pure white ('#ffffff') with a weight of 8 and a 'dashArray' property set to '12, 12'.`,
+        
+        3: `Please update the map styling in app.js to follow "Direction 3: Animated Crawling Dashes". Modify the closure rendering logic to draw a single polyline per segment using primary red ('#d93025') with a weight of 6, a 'dashArray' property set to '20, 20', and a custom 'className' property set to 'crawling-dashes'. Also, append the necessary CSS keyframe animation for '.crawling-dashes' targeting 'stroke-dashoffset' to styles.css.`
+    };
+
+    function copyPatternPrompt(id, btn) {
+        const text = prompts[id];
+        navigator.clipboard.writeText(text).then(() => {
+            document.querySelectorAll('.copy-btn').forEach(b => {
+                b.classList.remove('copied');
+                b.innerText = 'Copy Prompt';
+            });
+            btn.classList.add('copied');
+            btn.innerText = 'Copied!';
+
+            const toast = document.getElementById('toast');
+            toast.style.display = 'block';
+            setTimeout(() => { toast.style.display = 'none'; }, 3000);
+        }).catch(err => {
+            alert('Failed to copy prompt.');
+        });
+    }
+</script>
+</body>
+</html>

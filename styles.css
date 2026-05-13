@@ -1,0 +1,423 @@
+* {
+    box-sizing: border-box;
+    margin: 0;
+    padding: 0;
+}
+
+body, html {
+    height: 100%;
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+    color: #333;
+}
+
+#app {
+    display: flex;
+    height: 100vh;
+    overflow: hidden;
+}
+
+#sidebar {
+    width: 320px;
+    background-color: #f8f9fa;
+    border-right: 1px solid #dee2e6;
+    display: flex;
+    flex-direction: column;
+    z-index: 1000; /* Stay above map elements if needed, though flex handles layout */
+}
+
+#sidebar header {
+    padding: 20px;
+    background-color: #FDB813; /* Solid yellow */
+    border-bottom: 2px solid #000;
+}
+
+#sidebar header h1 {
+    font-size: 1.5rem;
+    font-weight: 900;
+    color: #000;
+    text-transform: uppercase;
+    font-family: "Arial Black", sans-serif;
+}
+
+#sidebar header p {
+    font-size: 0.85rem;
+    color: #000;
+    font-weight: bold;
+}
+
+#closure-list {
+    list-style: none;
+    overflow-y: auto;
+    flex-grow: 1;
+}
+
+#closure-list li {
+    padding: 15px 20px;
+    border-bottom: 1px solid #000;
+    cursor: pointer;
+    transition: background-color 0.2s ease;
+}
+
+#closure-list li:hover {
+    background-color: #fff3cd;
+}
+
+#closure-list li.active {
+    background-color: #fff3cd;
+    border-left: 6px solid #000;
+}
+
+#closure-list li h3 {
+    font-size: 1.1rem;
+    font-weight: 900;
+    text-transform: uppercase;
+    font-family: "Arial Black", sans-serif;
+}
+
+#closure-list li p {
+    font-size: 0.8rem;
+    color: #000;
+}
+
+#map-container {
+    flex-grow: 1;
+    height: 100%;
+}
+
+#map {
+    width: 100%;
+    height: 100%;
+}
+
+/* Responsive design for smaller screens */
+@media (max-width: 768px) {
+    #app {
+        display: block;
+        position: relative;
+    }
+
+    #map-container {
+        height: 100vh;
+        width: 100%;
+        position: absolute;
+        top: 0;
+        left: 0;
+    }
+
+    /* Map legend top right */
+    /* Map legend top right */
+    .map-legend {
+        bottom: auto !important;
+        top: 20px !important;
+        right: 20px !important;
+        padding: 10px 12px;
+        border-left: 4px solid #FDB813;
+        z-index: 1000;
+        height: max-content !important;
+        width: max-content !important;
+        transition: all 0.2s ease;
+        overflow: hidden;
+    }
+    .map-legend h4 {
+        font-size: 0.75rem;
+        margin-bottom: 6px;
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 12px;
+        cursor: pointer;
+        user-select: none;
+    }
+    .map-legend h4 .chevron {
+        transition: transform 0.2s ease;
+        font-size: 0.65rem;
+    }
+    .legend-inner-items {
+        display: flex;
+        flex-direction: column;
+    }
+    .legend-item {
+        font-size: 0.75rem;
+        gap: 8px;
+        margin-bottom: 5px;
+    }
+
+    /* Collapsed Accordion State */
+    .map-legend.collapsed {
+        padding: 8px 10px;
+        border-radius: 20px;
+    }
+    .map-legend.collapsed h4 {
+        margin-bottom: 0;
+        gap: 6px;
+    }
+    .map-legend.collapsed .legend-title-text {
+        display: none;
+    }
+    .map-legend.collapsed .legend-title-icon {
+        display: inline-block !important;
+        font-size: 1.1rem;
+        color: #0B1B3D;
+    }
+    .map-legend.collapsed .legend-inner-items {
+        display: none;
+    }
+    .map-legend.collapsed h4 .chevron {
+        transform: rotate(-90deg);
+    }
+
+    /* Bottom Sheet Drawer */
+    #sidebar {
+        position: absolute;
+        bottom: 0;
+        left: 0;
+        right: 0;
+        width: 100%;
+        height: 25vh; /* Default height allocation */
+        border-right: none;
+        border-top: 2px solid #000;
+        border-radius: 20px 20px 0 0;
+        box-shadow: 0 -4px 20px rgba(0,0,0,0.2);
+        z-index: 2000; /* Sit above map and legend */
+        transition: height 0.3s cubic-bezier(0.25, 1, 0.5, 1); /* Smooth snapping */
+    }
+
+    /* Disable CSS transitions when the user is actively dragging */
+    #sidebar.dragging {
+        transition: none;
+    }
+
+    /* Visual drag handle indicator */
+    #sidebar::before {
+        content: "";
+        display: block;
+        width: 40px;
+        height: 4px;
+        background: rgba(0, 0, 0, 0.3);
+        border-radius: 2px;
+        margin: 8px auto -12px auto;
+        z-index: 10;
+    }
+
+    /* Compact header typography */
+    #sidebar header {
+        padding: 15px;
+        touch-action: none; /* Prevent vertical page scroll while dragging header */
+        cursor: grab;
+    }
+    #sidebar header:active {
+        cursor: grabbing;
+    }
+
+    #sidebar header h1 {
+        font-size: 1.2rem;
+    }
+
+    #sidebar header p {
+        font-size: 0.75rem;
+    }
+
+    .slider-container {
+        margin-top: 10px;
+        padding: 8px;
+    }
+
+    /* Standard Touch Target Density */
+    #closure-list li {
+        padding: 12px 15px;
+    }
+
+    #closure-list li h3 {
+        font-size: 1rem;
+    }
+}
+
+/* Custom Popup Styling (Direction 5: Dark Alert Card) */
+.leaflet-popup-content-wrapper {
+    background: #0B1B3D !important;
+    color: #fff !important;
+    border-radius: 4px !important;
+    border-left: 6px solid #FDB813 !important;
+}
+
+.leaflet-popup-content {
+    margin: 0 !important;
+    padding: 15px !important;
+}
+
+.leaflet-popup-tip {
+    background: #0B1B3D !important;
+}
+
+.leaflet-popup-close-button {
+    color: #fff !important;
+}
+
+.alert-time {
+    font-size: 1.4rem;
+    font-weight: 900;
+    color: #FDB813;
+    display: block;
+    margin-bottom: 5px;
+    font-family: "Arial Black", sans-serif;
+}
+
+.alert-street {
+    font-size: 1.1rem;
+    font-weight: 700;
+    text-transform: uppercase;
+    color: #fff;
+    display: block;
+    margin-bottom: 5px;
+}
+
+.alert-meta {
+    font-size: 0.7rem;
+    color: #888;
+    display: block;
+    margin-top: 10px;
+    border-top: 1px solid #1a2a4a;
+    padding-top: 5px;
+}
+
+/* Slider Styling */
+.slider-container {
+    margin-top: 15px;
+    background: #000;
+    color: #fff;
+    padding: 10px;
+    border-radius: 4px;
+}
+
+.slider-container label {
+    display: flex;
+    justify-content: space-between;
+    font-weight: bold;
+    margin-bottom: 5px;
+}
+
+.slider-container span {
+    color: #FDB813; /* Yellow accent */
+}
+
+#time-slider {
+    width: 100%;
+    accent-color: #FDB813;
+    cursor: pointer;
+}
+
+.solid-trace {
+    pointer-events: none;
+    stroke-dasharray: 2000 !important;
+    stroke-dashoffset: 2000 !important;
+    transition: stroke-dashoffset 4.7s ease-in-out !important;
+}
+
+.solid-trace.active {
+    pointer-events: auto;
+    stroke-dashoffset: 0 !important;
+}
+
+@keyframes glow {
+    0%, 100% { stroke-width: 4px; }
+    50% { stroke-width: 9px; stroke-opacity: 0.8; }
+}
+
+.solid-trace.glowing {
+    animation: glow 3s ease-in-out infinite;
+}
+
+/* ==========================================
+   Floating Persistent Map Legend Card
+   ========================================== */
+.map-legend {
+    position: absolute;
+    bottom: 30px;
+    right: 30px;
+    background: rgba(255, 255, 255, 0.95);
+    padding: 15px 20px;
+    border-radius: 8px;
+    box-shadow: 0 4px 16px rgba(0,0,0,0.15);
+    z-index: 1000;
+    border-left: 6px solid #FDB813;
+    pointer-events: auto;
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+}
+
+.map-legend h4 {
+    margin-top: 0;
+    margin-bottom: 10px;
+    color: #0B1B3D;
+    font-size: 0.9rem;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    border-bottom: 1px solid #dee2e6;
+    padding-bottom: 5px;
+}
+
+.legend-item {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    margin-bottom: 8px;
+    font-size: 0.8rem;
+    color: #333;
+    font-weight: 600;
+    white-space: nowrap;
+    width: 100%;
+}
+.legend-item:last-child { margin-bottom: 0; }
+
+.legend-icon {
+    width: 32px;
+    height: 14px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+}
+
+/* Symbology Indicator Graphics */
+.legend-icon.closure-line {
+    background: #d93025;
+    height: 4px;
+    border-radius: 2px;
+    box-shadow: 0 0 4px rgba(217, 48, 37, 0.6);
+}
+
+.legend-icon.course-ribbon {
+    background: rgba(0, 43, 73, 0.25);
+    height: 10px;
+    border-radius: 4px;
+    position: relative;
+}
+.legend-icon.course-ribbon .ribbon-core {
+    position: absolute;
+    top: 3px;
+    left: 0;
+    right: 0;
+    height: 4px;
+    background: #ffffff;
+    border-radius: 2px;
+}
+
+.legend-icon.runner-swarm {
+    gap: 4px;
+}
+.legend-icon.runner-swarm .dot {
+    width: 6px;
+    height: 6px;
+    background: #FDB813;
+    border-radius: 50%;
+    box-shadow: 0 0 3px #FDB813;
+}
+
+.legend-icon.checkpoint-badge {
+    background: #0B1B3D;
+    color: #FDB813;
+    font-size: 0.55rem;
+    font-weight: 900;
+    padding: 1px 4px;
+    border-radius: 3px;
+    border: 1px solid #FDB813;
+}
