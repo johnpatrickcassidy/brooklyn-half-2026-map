@@ -2,6 +2,70 @@ document.addEventListener('DOMContentLoaded', async () => {
     await google.maps.importLibrary("maps");
     const { Map: GoogleMap, Polyline, InfoWindow, OverlayView, LatLng, LatLngBounds } = google.maps;
 
+    class StreetDetailsOverlay extends OverlayView {
+        constructor() {
+            super();
+            this.latLng = null;
+            this.contentHtml = '';
+            this.container = document.createElement('div');
+            this.container.className = 'custom-street-overlay-container';
+            this.container.style.position = 'absolute';
+            this.container.style.pointerEvents = 'auto';
+            
+            // Close overlay when close button is clicked
+            this.container.addEventListener('click', (e) => {
+                if (e.target.classList.contains('overlay-close-btn')) {
+                    this.close();
+                }
+            });
+        }
+        onAdd() {
+            const panes = this.getPanes();
+            if (panes && panes.overlayMouseTarget) {
+                panes.overlayMouseTarget.appendChild(this.container);
+            }
+        }
+        draw() {
+            const projection = this.getProjection();
+            if (!projection || !this.latLng) return;
+            const point = projection.fromLatLngToDivPixel(this.latLng);
+            if (point) {
+                this.container.style.left = point.x + 'px';
+                this.container.style.top = point.y + 'px';
+            }
+        }
+        onRemove() {
+            if (this.container.parentNode) {
+                this.container.parentNode.removeChild(this.container);
+            }
+        }
+        setContent(html) {
+            this.contentHtml = html;
+            this.container.innerHTML = html;
+        }
+        setPosition(latLng) {
+            this.latLng = latLng;
+            this.draw();
+        }
+        open(map) {
+            this.setMap(map);
+            // Redraw immediately to prevent flickering
+            setTimeout(() => this.draw(), 0);
+        }
+        close() {
+            this.setMap(null);
+        }
+    }
+
+    // Persistent Onboarding Display Logic (TEMPORARILY BYPASSED FOR LOCAL TESTING: Always show)
+    const onboardingOverlay = document.getElementById('onboarding-overlay');
+    // Defer initialization slightly to allow full page rendering
+    setTimeout(() => {
+        if (typeof initOnboarding === 'function') {
+            initOnboarding();
+        }
+    }, 200);
+
     const lightGrayStyle = [
         { elementType: "geometry", stylers: [{ color: "#f5f5f5" }] },
         { elementType: "labels.icon", stylers: [{ visibility: "off" }] },
@@ -34,7 +98,7 @@ document.addEventListener('DOMContentLoaded', async () => {
 
     const listContainer = document.getElementById('closure-list');
     const layersMap = new Map(); // id -> { polylines: [], content: string }
-    const sharedInfoWindow = new InfoWindow();
+    const sharedInfoWindow = new StreetDetailsOverlay();
 
     // Style options for Solid Lines
     const solidStyle = {
@@ -101,6 +165,7 @@ document.addEventListener('DOMContentLoaded', async () => {
         
         const popupContent = `
             <div class="dark-alert-card">
+                <button class="overlay-close-btn">&times;</button>
                 <span class="alert-time">${formatShortTime(item.startMin)}–${formatShortTime(item.endMin)}</span>
                 <span class="alert-street">${item.street}</span>
                 <span class="alert-meta">No Parking: ${item.noParking
@@ -418,7 +483,7 @@ document.addEventListener('DOMContentLoaded', async () => {
             const pt = getPointAtDistance(m, courseCoords, courseCumDist);
             const mDiv = document.createElement('div');
             mDiv.style.cssText = 'background: #0B1B3D; color: #FDB813; padding: 3px 8px; border-radius: 4px; font-weight: 900; font-size: 0.7rem; border: 1px solid #FDB813; text-align: center; font-family: sans-serif; white-space: nowrap;';
-            mDiv.textContent = `M${m}`;
+            mDiv.textContent = `Mile ${m}`;
             const mileMarker = new HTMLMarker(new LatLng(pt[0], pt[1]), mDiv);
             mileMarker.setMap(map);
         }
@@ -622,7 +687,9 @@ document.addEventListener('DOMContentLoaded', async () => {
             const minH = snaps.collapsed;
             const maxH = snaps.expanded;
             
-            sidebar.style.height = `${Math.max(minH, Math.min(maxH, newHeight))}px`;
+            const heightVal = Math.max(minH, Math.min(maxH, newHeight));
+            sidebar.style.height = `${heightVal}px`;
+            document.documentElement.style.setProperty('--sheet-height', `${heightVal}px`);
             if (e && e.cancelable) e.preventDefault();
         }
     }
@@ -656,6 +723,7 @@ document.addEventListener('DOMContentLoaded', async () => {
         }
         
         sidebar.style.height = `${targetHeight}px`;
+        document.documentElement.style.setProperty('--sheet-height', `${targetHeight}px`);
         setTimeout(() => {
             google.maps.event.trigger(map, 'resize');
         }, 350);
@@ -676,5 +744,257 @@ document.addEventListener('DOMContentLoaded', async () => {
                 mapLegend.classList.toggle('collapsed');
             });
         }
+    }
+
+    // ==========================================
+    // Sleek Minimalist Onboarding Logic
+    // ==========================================
+    function initOnboarding() {
+        const overlay = document.getElementById('onboarding-overlay');
+        if (!overlay) return;
+
+        const phase1 = document.getElementById('onboarding-phase-1');
+        const phase2 = document.getElementById('onboarding-phase-2');
+        const phase3 = document.getElementById('onboarding-phase-3');
+        const timeIndicator = document.getElementById('onboarding-time-indicator');
+        const ctaBtn = document.getElementById('onboarding-cta-btn');
+        
+        const flatbush = document.getElementById('onboarding-closure-flatbush');
+        const opNorth = document.getElementById('onboarding-closure-op-north');
+        const opSouth = document.getElementById('onboarding-closure-op-south');
+        const swarmParticles = document.getElementById('onboarding-swarm-particles');
+        
+        // Locked Pixel-Matched Physics Parameters
+        const particleCount = 530;
+        const dispersion = 20;
+        const tailSkew = 80;
+        const speedVariance = 0.23;
+        const dotSizeMin = 1.9;
+        const dotSizeMax = 8.0;
+        const opacityMin = 0.1;
+        const opacityMax = 0.95;
+
+        // Master Timeline Schedule (Choreographed)
+        const masterRoadsClosingTime = 390;        // 6:30 AM
+        const masterRunnersSwarmLaunchTime = 460;   // 7:40 AM
+        const masterRoadsReopeningTime = 840;       // 2:00 PM
+
+        const particles = [];
+        let currentTime = masterRoadsClosingTime; // Starts at master closing commencement
+        let isPaused = false;
+        let loopInterval = null;
+
+        function generateParticles() {
+            if (!swarmParticles) return;
+            swarmParticles.innerHTML = '';
+            
+            for (let i = 0; i < particleCount; i++) {
+                let dx, dy, speedFactor = 1.0;
+                
+                // Box-Muller transforms for Gaussian Normal Distributions
+                let u = 0, v = 0;
+                while(u === 0) u = Math.random();
+                while(v === 0) v = Math.random();
+                let normalX = Math.sqrt(-2.0 * Math.log(u)) * Math.cos(2.0 * Math.PI * v);
+                
+                u = 0, v = 0;
+                while(u === 0) u = Math.random();
+                while(v === 0) v = Math.random();
+                let normalY = Math.sqrt(-2.0 * Math.log(u)) * Math.cos(2.0 * Math.PI * v);
+                
+                // 1. Core Gaussian offsets
+                dx = normalX * dispersion;
+                dy = (normalY * dispersion) + (Math.abs(normalX) * (tailSkew * 0.5));
+                
+                // 2. Independent velocity distributions
+                if (speedVariance > 0) {
+                    u = 0, v = 0;
+                    while(u === 0) u = Math.random();
+                    while(v === 0) v = Math.random();
+                    let speedNormal = Math.sqrt(-2.0 * Math.log(u)) * Math.cos(2.0 * Math.PI * v);
+                    speedFactor = 1.0 + (speedNormal * speedVariance);
+                    speedFactor = Math.max(0.5, Math.min(1.8, speedFactor));
+                }
+                
+                const size = dotSizeMin + Math.random() * (dotSizeMax - dotSizeMin);
+                const opacity = opacityMin + Math.random() * (opacityMax - opacityMin);
+                
+                particles.push({ dx, dy, size, opacity, speedFactor });
+                
+                // Build SVG Line nodes in namespace representing streaking dots
+                const ns = 'http://www.w3.org/2000/svg';
+                const line = document.createElementNS(ns, 'line');
+                line.setAttribute('stroke', '#FDB813'); // True map-gold runner swarm
+                line.setAttribute('stroke-width', size / 1.5);
+                line.setAttribute('stroke-linecap', 'round');
+                line.setAttribute('opacity', 0); // hidden initially
+                swarmParticles.appendChild(line);
+            }
+        }
+        
+        function formatTimeText(minutes) {
+            let hours = Math.floor(minutes / 60);
+            let mins = minutes % 60;
+            let ampm = hours >= 12 ? 'PM' : 'AM';
+            hours = hours % 12;
+            hours = hours ? hours : 12;
+            return `${hours}:${mins < 10 ? '0' : ''}${mins} ${ampm}`;
+        }
+
+        function getPositionAlongCourse(currentTimeVal) {
+            const startMin = masterRunnersSwarmLaunchTime;
+            const endMin = masterRoadsReopeningTime;
+            const totalDuration = endMin - startMin;
+            
+            let p = (currentTimeVal - startMin) / totalDuration;
+            p = Math.max(0, Math.min(1, p));
+            
+            // Hermite S-Curve Easing wave progression
+            const t = p * p * (3 - 2 * p);
+            
+            let x, y, headingX = 0, headingY = 0;
+            // Vector vectors matching course geometry
+            if (t < 0.3) {
+                let t1 = t / 0.3;
+                x = 440 - (440 - 320) * t1;
+                y = 120 + (260 - 120) * t1;
+                headingX = -(440 - 320);
+                headingY = 260 - 120;
+            } else if (t < 0.8) {
+                let t2 = (t - 0.3) / 0.5;
+                x = 320 - (320 - 200) * t2;
+                y = 260 + (550 - 260) * t2;
+                headingX = -(320 - 200);
+                headingY = 550 - 260;
+            } else {
+                let t3 = (t - 0.8) / 0.2;
+                x = 200 - (200 - 180) * t3;
+                y = 550 + (750 - 550) * t3;
+                headingX = -(200 - 180);
+                headingY = 750 - 550;
+            }
+            
+            const len = Math.sqrt(headingX * headingX + headingY * headingY);
+            if (len > 0) {
+                headingX /= len;
+                headingY /= len;
+            }
+            return { x, y, headingX, headingY, t };
+        }
+        
+        function updateMockMap(minutes) {
+            if (timeIndicator) timeIndicator.textContent = formatTimeText(minutes);
+            
+            // 1. Closure Segments Opacities (#d93025)
+            if (flatbush) {
+                const start = masterRoadsClosingTime;
+                const end = masterRoadsReopeningTime - 150;
+                let op = 0;
+                if (minutes >= start && minutes <= end) {
+                    const fade = (end - start) * 0.5;
+                    op = minutes > (end - fade) ? Math.max(0, 1 - (minutes - (end - fade)) / fade) : 1;
+                }
+                flatbush.style.strokeOpacity = op;
+            }
+            if (opNorth) {
+                const start = masterRoadsClosingTime + 30;
+                const end = masterRoadsReopeningTime - 60;
+                opNorth.style.strokeOpacity = (minutes >= start && minutes <= end) ? 1 : 0;
+            }
+            if (opSouth) {
+                const start = masterRoadsClosingTime + 60;
+                const end = masterRoadsReopeningTime;
+                opSouth.style.strokeOpacity = (minutes >= start && minutes <= end) ? 1 : 0;
+            }
+            
+            // 2. Independent Swarm Physics Updates
+            if (swarmParticles) {
+                const children = swarmParticles.children;
+                for (let i = 0; i < particles.length; i++) {
+                    const p = particles[i];
+                    const node = children[i];
+                    if (!node) continue;
+                    
+                    // Calculate custom timeline progression for this runner
+                    const pTime = 420 + (minutes - 420) * p.speedFactor;
+                    const pos = getPositionAlongCourse(pTime);
+                    
+                    // Hide element if not started or already finished course
+                    if (pos.t <= 0 || pos.t >= 1.0) {
+                        node.setAttribute('opacity', 0);
+                        continue;
+                    }
+                    
+                    // Softly fade opacity as they cross finish line
+                    let opacity = p.opacity;
+                    if (pos.t > 0.92) {
+                        opacity = p.opacity * (1 - (pos.t - 0.92) / 0.08);
+                    }
+                    
+                    const x = pos.x + p.dx;
+                    const y = pos.y + p.dy;
+                    
+                    // Streaking Line geometry aligned backwards to segment vector
+                    node.setAttribute('x1', x);
+                    node.setAttribute('y1', y);
+                    node.setAttribute('x2', x - pos.headingX * (p.size * 2.5));
+                    node.setAttribute('y2', y - pos.headingY * (p.size * 2.5));
+                    node.setAttribute('opacity', opacity);
+                }
+            }
+
+            // 3. Passive Phase Highlights sync
+            // Phase 1: Closures (7:00am - 9:15am)
+            if (minutes < 555) {
+                if (phase1) phase1.classList.add('active');
+                if (phase2) phase2.classList.remove('active');
+                if (phase3) phase3.classList.remove('active');
+            } 
+            // Phase 2: Swarm (9:15am - 11:45am)
+            else if (minutes >= 555 && minutes < 705) {
+                if (phase1) phase1.classList.remove('active');
+                if (phase2) phase2.classList.add('active');
+                if (phase3) phase3.classList.remove('active');
+            } 
+            // Phase 3: Reopening (11:45am - 1:00pm)
+            else {
+                if (phase1) phase1.classList.remove('active');
+                if (phase2) phase2.classList.remove('active');
+                if (phase3) phase3.classList.add('active');
+            }
+        }
+        
+        // 3x Speed timeline loop: ticks by 9 minutes every 100ms (4.0s full cycle)
+        function startTimelineLoop() {
+            loopInterval = setInterval(() => {
+                if (isPaused) return;
+                
+                currentTime += 9;
+                if (currentTime > masterRoadsReopeningTime) {
+                    currentTime = masterRoadsClosingTime; // loop back to master closing commencement
+                }
+                updateMockMap(currentTime);
+            }, 100);
+        }
+
+        if (ctaBtn) {
+            ctaBtn.addEventListener('click', () => {
+                clearInterval(loopInterval);
+                overlay.classList.add('fade-out');
+                localStorage.setItem('onboarding-completed', 'true');
+                
+                setTimeout(() => {
+                    overlay.style.display = 'none';
+                    if (typeof google !== 'undefined' && google.maps) {
+                        google.maps.event.trigger(map, 'resize');
+                    }
+                }, 600);
+            });
+        }
+        
+        // Initialize particles, state elements, and start auto timeline loop
+        generateParticles();
+        updateMockMap(currentTime);
+        startTimelineLoop();
     }
 });

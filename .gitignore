@@ -17,3 +17,6 @@ Thumbs.db
 # Local configuration secrets
 config.js
 
+
+# Experiments
+experiments/

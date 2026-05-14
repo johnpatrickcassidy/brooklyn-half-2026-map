@@ -6,6 +6,12 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Brooklyn Half Marathon Road Closures</title>
 
+    <!-- Google Fonts: Lora & Inter -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link
+        href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Lora:ital,wght@0,400;0,500;0,600;1,400&display=swap"
+        rel="stylesheet">
     <!-- Custom Styles -->
     <link rel="stylesheet" href="styles.css">
     <!-- Google Material Symbols -->
@@ -54,12 +60,140 @@
                         <span>Running pack</span>
                     </div>
                     <div class="legend-item">
-                        <div class="legend-icon checkpoint-badge">M#</div>
+                        <div class="legend-icon checkpoint-badge">Mile</div>
                         <span>Mile markers</span>
                     </div>
                 </div>
             </div>
         </main>
+    </div>
+
+    <!-- Sleek Minimalist Onboarding Overlay -->
+    <div id="onboarding-overlay" class="onboarding-overlay">
+        <div class="onboarding-card">
+            <!-- Main Grid -->
+            <div class="onboarding-grid">
+                <!-- Left Column: Text & Highlights -->
+                <div class="onboarding-left">
+                    <div class="onboarding-header">
+                        <div class="prominent-date">Saturday, May 16th</div>
+                        <h2 class="main-title">
+                            25,000+ runners.<br>
+                            Our neighborhood.<br>
+                            <!-- <span class="bold-accent">How will you <span class="accent-highlight">navigate?</span></span> -->
+                        </h2>
+                        <p class="body-text">
+                            Saturday's big race doesn't have to ruin your Saturday. This map will help you plan your
+                            Saturday, showing street closures & re-openings and the runners pack, so you can figure out your
+                            route to make it to swim lessons, baseball games, or your karate classes on time.
+                        </p>
+                    </div>
+    
+                    <!-- Value Props Passive Cards (Highlight dynamically on loop) -->
+                    <!-- <div class="onboarding-tabs">
+                                            <div id="onboarding-phase-1" class="phase-card active">
+                                                <span class="tab-icon">🚧</span>
+                                                <div class="tab-text">
+                                                    <span class="tab-title">1. Dynamic Closures</span>
+                                                    <span class="tab-desc">Road segment barricades turn <strong
+                                                            class="highlight-red">red</strong> as closures block streets.</span>
+                                                </div>
+                                            </div>
+                        
+                                            <div id="onboarding-phase-2" class="phase-card">
+                                                <span class="tab-icon">🏃‍♂️</span>
+                                                <div class="tab-text">
+                                                    <span class="tab-title">2. Avoid the Swarm</span>
+                                                    <span class="tab-desc">Track the peak <strong class="highlight-gold">gold</strong> runner
+                                                        pack to bypass neighborhood gridlock.</span>
+                                                </div>
+                                            </div>
+                        
+                                            <div id="onboarding-phase-3" class="phase-card">
+                                                <span class="tab-icon">✅</span>
+                                                <div class="tab-text">
+                                                    <span class="tab-title">3. Streets Reopen</span>
+                                                    <span class="tab-desc">Muted gray outlines return sequentially as runners pass.</span>
+                                                </div>
+                                            </div>
+                                        </div> -->
+                </div>
+    
+                <!-- Right Column: Simulated Map (Pixel Matched) -->
+                <div class="onboarding-right">
+                    <div class="mock-map-container">
+                        <svg class="mock-map" viewBox="0 0 600 800" fill="none" xmlns="http://www.w3.org/2000/svg">
+                            <!-- Grid base -->
+                            <path
+                                d="M 50 100 L 550 100 M 50 200 L 550 200 M 50 300 L 550 300 M 50 400 L 550 400 M 50 500 L 550 500 M 50 600 L 550 600 M 50 700 L 550 700"
+                                stroke="#131316" stroke-width="2" />
+                            <path
+                                d="M 100 50 L 100 750 M 200 50 L 200 750 M 300 50 L 300 750 M 400 50 L 400 750 M 500 50 L 500 750"
+                                stroke="#131316" stroke-width="2" />
+    
+                            <!-- Prospect Park Area -->
+                            <path d="M 380 80 Q 450 80 480 150 Q 440 220 380 200 Q 340 150 380 80 Z" fill="#065f46"
+                                fill-opacity="0.1" stroke="#047857" stroke-width="1" stroke-opacity="0.4" />
+                            <text x="395" y="145" fill="#047857" font-size="14" font-family="Inter, sans-serif"
+                                font-weight="bold" fill-opacity="0.4">Prospect Park</text>
+    
+                            <!-- PIXEL MATCHED COURSE RIBBON -->
+                            <!-- Outer glow ribbon (#002b49 @ 9px, 0.25 opacity) -->
+                            <path d="M 440 120 L 320 260 L 200 550 L 180 750" stroke="#002b49" stroke-width="9"
+                                stroke-opacity="0.25" stroke-linecap="round" stroke-linejoin="round" />
+                            <!-- Inner white ribbon (#ffffff @ 4px) -->
+                            <path d="M 440 120 L 320 260 L 200 550 L 180 750" stroke="#ffffff" stroke-width="4"
+                                stroke-linecap="round" stroke-linejoin="round" />
+    
+                            <!-- PIXEL MATCHED CLOSURES OVERLAYS (#d93025) -->
+                            <path id="onboarding-closure-flatbush" d="M 440 120 L 320 260" stroke="#d93025" stroke-width="6"
+                                stroke-linecap="round" class="closure-segment active" />
+                            <path id="onboarding-closure-op-north" d="M 320 260 L 200 550" stroke="#d93025" stroke-width="6"
+                                stroke-linecap="round" class="closure-segment active" />
+                            <path id="onboarding-closure-op-south" d="M 200 550 L 180 750" stroke="#d93025" stroke-width="6"
+                                stroke-linecap="round" class="closure-segment active" />
+    
+                            <!-- DYNAMIC PHYSICS RUNNER SWARM GROUP CONTAINER -->
+                            <g id="onboarding-swarm-group" class="swarm-group">
+                                <g id="onboarding-swarm-particles"></g>
+                            </g>
+    
+                            <!-- Mile Markers -->
+                            <rect x="415" y="110" width="50" height="20" rx="4" fill="#18181b" stroke="#a1a1aa"
+                                stroke-width="1.5" />
+                            <text x="440" y="124" fill="#a1a1aa" font-size="10" font-family="monospace"
+                                text-anchor="middle">Mile 1</text>
+    
+                            <rect x="172.5" y="540" width="55" height="20" rx="4" fill="#18181b" stroke="#a1a1aa"
+                                stroke-width="1.5" />
+                            <text x="200" y="554" fill="#a1a1aa" font-size="10" font-family="monospace"
+                                text-anchor="middle">Mile 10</text>
+                        </svg>
+    
+                        <!-- Map Legend -->
+                        <!-- <div class="mock-map-legend">
+                                                    <div class="legend-tag">
+                                                        <span class="barricade-line"></span>
+                                                        <span>Closed</span>
+                                                    </div>
+                                                    <div class="legend-tag">
+                                                        <span class="pack-dot"></span>
+                                                        <span>Swarm</span>
+                                                    </div>
+                                                    <div id="onboarding-time-indicator" class="legend-time">8:00 AM</div>
+                                                </div> -->
+                    </div>
+                </div>
+            </div>
+    
+            <!-- Bottom Centered Footer CTA -->
+            <div class="onboarding-footer">
+                <button id="onboarding-cta-btn" class="onboarding-cta">
+                    <span>Launch map</span>
+                    <span>→</span>
+                </button>
+            </div>
+        </div>
     </div>
 
     <!-- Configuration Secrets -->
