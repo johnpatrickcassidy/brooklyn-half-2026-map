@@ -493,29 +493,31 @@ document.addEventListener('DOMContentLoaded', async () => {
                 }
             }
         } catch (e) {
-            for (let i = 0; i < 25000; i++) {
-                const finishMins = Math.max(65, 130 + (Math.random() + Math.random() + Math.random() - 1.5) * 40);
+            for (let i = 0; i < 27000; i++) {
+                const finishMins = Math.max(65, 130 + getGaussianRandom() * 30);
                 swarmRunners.push({ speed: 13.1 / finishMins, scatterX: getGaussianRandom() * 0.25, scatterY: getGaussianRandom() * 0.25 });
             }
         }
+
+        // Continuous Flow Parameters
+        const numWaves = 4;
+        const waveInterval = 30;
+        const waveSpread = 30;
 
         // Sort runners by speed descending (fastest first)
         swarmRunners.sort((a, b) => b.speed - a.speed);
 
         const numRunners = swarmRunners.length;
-        const quarter = Math.floor(numRunners / 4);
+        const quarter = Math.floor(numRunners / numWaves);
+        
         for (let i = 0; i < numRunners; i++) {
-            let waveDelay = 0;
-            if (i < quarter) {
-                waveDelay = 0; // Wave 1: 7:00 AM
-            } else if (i < 2 * quarter) {
-                waveDelay = 30; // Wave 2: 7:30 AM
-            } else if (i < 3 * quarter) {
-                waveDelay = 60; // Wave 3: 8:00 AM
-            } else {
-                waveDelay = 90; // Wave 4: 8:30 AM
-            }
-            swarmRunners[i].waveDelay = waveDelay;
+            const waveIndex = Math.floor(i / quarter);
+            const baseDelay = waveIndex * waveInterval;
+            
+            // Implement the "uniform" release crossing distribution:
+            const crossingDelay = Math.random() * waveSpread;
+            
+            swarmRunners[i].waveDelay = baseDelay + crossingDelay;
         }
 
         isSwarmInitialized = true;
