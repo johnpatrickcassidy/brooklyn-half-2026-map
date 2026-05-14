@@ -1,3 +1,7 @@
+:root {
+    --safe-area-bottom: env(safe-area-inset-bottom, 0px);
+}
+
 * {
     box-sizing: border-box;
     margin: 0;
@@ -12,7 +16,8 @@ body, html {
 
 #app {
     display: flex;
-    height: 100vh;
+    height: 100vh; /* Fallback */
+    height: 100dvh;
     overflow: hidden;
 }
 
@@ -94,10 +99,13 @@ body, html {
     #app {
         display: block;
         position: relative;
+        height: 100vh; /* Fallback */
+        height: 100dvh;
     }
 
     #map-container {
-        height: 100vh;
+        height: 100vh; /* Fallback */
+        height: 100dvh;
         width: 100%;
         position: absolute;
         top: 0;
@@ -146,7 +154,7 @@ body, html {
 
     /* Bottom Sheet Drawer */
     #sidebar {
-        position: absolute;
+        position: fixed;
         bottom: 0;
         left: 0;
         right: 0;
@@ -157,7 +165,16 @@ body, html {
         border-radius: 20px 20px 0 0;
         box-shadow: 0 -4px 20px rgba(0,0,0,0.2);
         z-index: 2000; /* Sit above map and legend */
-        transition: height 0.3s cubic-bezier(0.25, 1, 0.5, 1); /* Smooth snapping */
+        
+        /* Buffers */
+        --expanded-buffer: 60px;
+        --collapsed-buffer: 60px;
+        
+        transition: height 0.3s cubic-bezier(0.25, 1, 0.5, 1);
+    }
+
+    #sidebar.collapsed #closure-list {
+        display: none;
     }
 
     /* Disable CSS transitions when the user is actively dragging */
@@ -203,6 +220,7 @@ body, html {
     /* Standard Touch Target Density */
     #closure-list {
         overscroll-behavior-y: contain;
+        padding-bottom: calc(env(safe-area-inset-bottom, 16px) + var(--expanded-buffer, 60px));
     }
 
     #closure-list li {

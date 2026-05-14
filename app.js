@@ -550,8 +550,25 @@ document.addEventListener('DOMContentLoaded', async () => {
 
     function getSnapHeights() {
         const vh = window.innerHeight;
+        
+        // Read safe area bottom from CSS custom property, fallback to 16
+        const safeAreaStr = getComputedStyle(document.documentElement).getPropertyValue('--safe-area-bottom').trim();
+        let safeAreaBottom = 0;
+        if (safeAreaStr) {
+            const parsed = parseInt(safeAreaStr);
+            if (!isNaN(parsed)) {
+                safeAreaBottom = parsed;
+            } else {
+                safeAreaBottom = 16; // Fallback if unresolved env()
+            }
+        } else {
+            safeAreaBottom = 16;
+        }
+        
+        const collapsedBuffer = 60; // Matching selected configuration
+        
         return {
-            collapsed: sidebarHeader.offsetHeight + 10 + (vh * 0.05),
+            collapsed: sidebarHeader.offsetHeight + safeAreaBottom + collapsedBuffer,
             default: vh * 0.25,
             expanded: vh * 0.85
         };
@@ -630,6 +647,12 @@ document.addEventListener('DOMContentLoaded', async () => {
         if (Math.abs(totalDelta) > 40) {
             if (totalDelta > 40) targetHeight = finalHeight > snaps.default ? snaps.expanded : snaps.default;
             else targetHeight = finalHeight < snaps.default ? snaps.collapsed : snaps.default;
+        }
+        
+        if (targetHeight === snaps.collapsed) {
+            sidebar.classList.add('collapsed');
+        } else {
+            sidebar.classList.remove('collapsed');
         }
         
         sidebar.style.height = `${targetHeight}px`;

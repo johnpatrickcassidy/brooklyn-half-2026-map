@@ -1,0 +1,563 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Collapsible Map Legend Directions Tuner</title>
+    <!-- Leaflet CSS -->
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" crossorigin=""/>
+    <style>
+        body {
+            display: flex;
+            height: 100vh;
+            margin: 0;
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+            background: #f0f2f5;
+            color: #333;
+            overflow: hidden;
+        }
+
+        /* ==========================================
+           Preview Layout Area
+           ========================================== */
+        .preview-section {
+            flex-grow: 1;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            padding: 20px;
+            overflow-y: auto;
+        }
+
+        .device-frame {
+            width: 393px;
+            height: 852px;
+            background: white;
+            border: 14px solid #111;
+            border-radius: 40px;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.2);
+            overflow: hidden;
+            position: relative;
+            display: flex;
+            flex-direction: column;
+        }
+
+        /* ==========================================
+           Control Panel
+           ========================================== */
+        .control-panel {
+            width: 460px;
+            background: white;
+            border-left: 1px solid #dee2e6;
+            padding: 25px;
+            overflow-y: auto;
+            box-shadow: -2px 0 12px rgba(0,0,0,0.05);
+            flex-shrink: 0;
+            display: flex;
+            flex-direction: column;
+        }
+
+        .control-panel h2 {
+            margin-top: 0;
+            color: #0B1B3D;
+            font-size: 1.4rem;
+            border-bottom: 2px solid #FDB813;
+            padding-bottom: 10px;
+            margin-bottom: 20px;
+        }
+
+        .option-card {
+            border: 2px solid #e9ecef;
+            border-radius: 10px;
+            padding: 15px;
+            margin-bottom: 15px;
+            cursor: pointer;
+            transition: all 0.2s ease;
+            background: #fff;
+        }
+
+        .option-card:hover {
+            border-color: #bac8d3;
+            background: #f8f9fa;
+        }
+
+        .option-card.active {
+            border-color: #0B1B3D;
+            background: #f2f6fc;
+            box-shadow: 0 4px 12px rgba(11, 27, 61, 0.1);
+        }
+
+        .option-card h3 {
+            margin: 0 0 6px 0;
+            font-size: 1rem;
+            color: #0B1B3D;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+        }
+
+        .option-card p {
+            margin: 0;
+            font-size: 0.8rem;
+            color: #555;
+            line-height: 1.3;
+        }
+
+        .badge {
+            background: #FDB813;
+            color: #0B1B3D;
+            font-size: 0.65rem;
+            font-weight: 900;
+            padding: 2px 6px;
+            border-radius: 4px;
+            text-transform: uppercase;
+        }
+
+        .copy-btn {
+            background-color: #0B1B3D;
+            color: white;
+            border: none;
+            padding: 14px 20px;
+            border-radius: 8px;
+            cursor: pointer;
+            font-weight: 700;
+            font-size: 1rem;
+            transition: background 0.2s, transform 0.1s;
+            width: 100%;
+            margin-top: auto;
+            border-bottom: 4px solid #061024;
+        }
+        .copy-btn:hover { background-color: #1557b0; }
+        .copy-btn:active { transform: translateY(2px); border-bottom-width: 2px; }
+        .copy-btn.copied { background-color: #0f9d58; border-color: #0a6c3c; }
+
+        #toast {
+            position: fixed;
+            bottom: 30px;
+            left: calc(50% - 230px);
+            transform: translateX(-50%);
+            background: #111;
+            color: #FDB813;
+            padding: 12px 24px;
+            border-radius: 8px;
+            font-weight: bold;
+            display: none;
+            box-shadow: 0 4px 16px rgba(0,0,0,0.2);
+            z-index: 10000;
+            border-left: 4px solid #FDB813;
+        }
+
+        /* ==========================================
+           Simulated App Environment
+           ========================================== */
+        #sim-app {
+            position: relative;
+            width: 100%;
+            height: 100%;
+            display: block;
+        }
+
+        #sim-map-container {
+            width: 100%;
+            height: 100%;
+            position: absolute;
+            top: 0; left: 0;
+        }
+
+        #sim-map { width: 100%; height: 100%; }
+
+        /* Mock Bottom Sheet Drawer */
+        #sim-sidebar {
+            position: absolute;
+            bottom: 0; left: 0; right: 0;
+            height: 25vh;
+            background: #f8f9fa;
+            border-top: 2px solid #000;
+            border-radius: 20px 20px 0 0;
+            box-shadow: 0 -4px 20px rgba(0,0,0,0.2);
+            z-index: 2000;
+            display: flex; flex-direction: column;
+        }
+        #sim-sidebar::before {
+            content: ""; display: block; width: 40px; height: 4px; background: rgba(0,0,0,0.3); border-radius: 2px; margin: 8px auto -12px auto; z-index: 10;
+        }
+        #sim-sidebar header {
+            padding: 15px; background: #FDB813; border-bottom: 2px solid #000;
+            display: flex; align-items: center; justify-content: space-between;
+        }
+        #sim-sidebar header h1 { font-size: 1.1rem; font-weight: 900; margin: 0; font-family: "Arial Black", sans-serif; }
+        #sim-sidebar header p { font-size: 0.7rem; margin: 2px 0 0 0; font-weight: bold; }
+        .header-left { display: flex; flex-direction: column; }
+        
+        /* Shared inner items for all dynamic legend view variants */
+        .legend-inner-items {
+            display: flex; flex-direction: column; gap: 6px; margin-top: 8px;
+        }
+        .sim-legend-item { display: flex; align-items: center; gap: 8px; font-size: 0.7rem; font-weight: 600; color: #333; }
+        .sim-legend-icon { width: 24px; height: 10px; display: flex; align-items: center; justify-content: center; }
+        .sim-legend-icon.closure-line { background: #d93025; height: 3px; border-radius: 1px; }
+        .sim-legend-icon.course-ribbon { background: rgba(0, 43, 73, 0.25); height: 8px; border-radius: 2px; position: relative; width: 24px; }
+        .sim-legend-icon.course-ribbon .ribbon-core { position: absolute; top: 2px; left: 0; right: 0; height: 3px; background: #fff; }
+        .sim-legend-icon.runner-swarm { gap: 2px; }
+        .sim-legend-icon.runner-swarm .dot { width: 4px; height: 4px; background: #FDB813; border-radius: 50%; }
+
+        /* ==========================================
+           Simulated Collapsible Legend Option Variants
+           ========================================== */
+        
+        /* Base container wrapping all dynamic directions */
+        #dynamic-legend-mount {
+            position: absolute;
+            top: 20px; right: 20px;
+            z-index: 1500;
+            pointer-events: auto;
+        }
+
+        /* ------------------------------------------
+           Option 1: Floating Accordion Header
+           ------------------------------------------ */
+        .opt1-card {
+            background: rgba(255, 255, 255, 0.95);
+            padding: 10px 12px;
+            border-radius: 8px;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+            border-left: 4px solid #FDB813;
+            width: max-content;
+            transition: all 0.3s ease;
+        }
+        .opt1-card h4 {
+            margin: 0; font-size: 0.75rem; color: #0B1B3D; text-transform: uppercase;
+            display: flex; align-items: center; justify-content: space-between; gap: 15px;
+            cursor: pointer; user-select: none;
+        }
+        .opt1-card h4 .arrow { transition: transform 0.3s ease; font-size: 0.6rem; }
+        .opt1-card.collapsed .legend-inner-items { display: none; }
+        .opt1-card.collapsed h4 .arrow { transform: rotate(-90deg); }
+        .opt1-card.collapsed { padding-bottom: 10px; }
+
+        /* ------------------------------------------
+           Option 2: Floating Action Button (FAB) Pill
+           ------------------------------------------ */
+        .opt2-wrapper { display: flex; flex-direction: column; align-items: flex-end; }
+        .opt2-fab {
+            background: #0B1B3D; color: #FDB813; border: none;
+            padding: 8px 14px; border-radius: 20px; font-weight: 700; font-size: 0.75rem;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.2); cursor: pointer;
+            display: flex; align-items: center; gap: 6px; border: 1px solid #FDB813;
+        }
+        .opt2-card {
+            background: rgba(255, 255, 255, 0.95); padding: 12px; border-radius: 8px;
+            box-shadow: 0 4px 16px rgba(0,0,0,0.2); border-left: 4px solid #FDB813;
+            display: none; width: max-content;
+        }
+        .opt2-card header { display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid #ccc; padding-bottom: 4px; margin-bottom: 6px; }
+        .opt2-card header h4 { margin: 0; font-size: 0.75rem; color: #0B1B3D; text-transform: uppercase; }
+        .opt2-card header .close-btn { font-size: 0.9rem; font-weight: bold; cursor: pointer; color: #888; }
+
+        /* ------------------------------------------
+           Option 3: Edge Slide-Out Tab Overlay
+           ------------------------------------------ */
+        .opt3-drawer {
+            position: fixed; right: 0; top: 20px;
+            background: rgba(255, 255, 255, 0.95); padding: 12px 15px;
+            border-radius: 8px 0 0 8px; box-shadow: -2px 4px 16px rgba(0,0,0,0.15);
+            border-left: 4px solid #FDB813; transition: transform 0.3s cubic-bezier(0.1, 1, 0.5, 1);
+            transform: translateX(calc(100% - 24px)); width: max-content;
+            display: flex; align-items: flex-start;
+        }
+        .opt3-drawer.open { transform: translateX(0); }
+        .opt3-tab {
+            position: absolute; left: 0; top: 0; bottom: 0; width: 24px;
+            background: #FDB813; color: #0B1B3D; cursor: pointer;
+            display: flex; align-items: center; justify-content: center;
+            writing-mode: vertical-rl; font-size: 0.6rem; font-weight: 900; letter-spacing: 1px;
+            border-radius: 4px 0 0 4px;
+        }
+        .opt3-content { margin-left: 24px; }
+        .opt3-content h4 { margin: 0 0 6px 0; font-size: 0.75rem; color: #0B1B3D; text-transform: uppercase; border-bottom: 1px solid #ccc; padding-bottom: 3px; }
+
+        /* ------------------------------------------
+           Option 4: Bottom Sheet Inline Action Button
+           ------------------------------------------ */
+        .opt4-sheet-btn {
+            background: #0B1B3D; color: #FDB813; border: 1px solid #FDB813;
+            width: 32px; height: 32px; border-radius: 50%; display: flex;
+            align-items: center; justify-content: center; font-weight: bold;
+            cursor: pointer; box-shadow: 0 2px 6px rgba(0,0,0,0.2);
+            font-size: 0.8rem;
+        }
+        .opt4-modal {
+            position: absolute; bottom: calc(25vh + 15px); right: 15px;
+            background: rgba(255, 255, 255, 0.95); padding: 12px; border-radius: 8px;
+            box-shadow: 0 4px 20px rgba(0,0,0,0.2); border-left: 4px solid #FDB813;
+            display: none; z-index: 2500; width: max-content;
+        }
+        .opt4-modal h4 { margin: 0 0 6px 0; font-size: 0.75rem; color: #0B1B3D; text-transform: uppercase; border-bottom: 1px solid #ccc; padding-bottom: 3px; }
+
+        /* ------------------------------------------
+           Option 5: Auto-Hiding Smart Timeout Card
+           ------------------------------------------ */
+        .opt5-card {
+            background: rgba(255, 255, 255, 0.95); padding: 10px 12px;
+            border-radius: 8px; box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+            border-left: 4px solid #FDB813; width: max-content;
+            transition: opacity 0.3s, transform 0.3s; overflow: hidden;
+            position: relative;
+        }
+        .opt5-card h4 { margin: 0; font-size: 0.75rem; color: #0B1B3D; text-transform: uppercase; }
+        .opt5-timer-bar {
+            height: 2px; background: #FDB813; width: 100%;
+            position: absolute; bottom: 0; left: 0;
+            transition: width 4s linear;
+        }
+        .opt5-card.collapsed-smart {
+            transform: scale(0.8); opacity: 0.4; cursor: pointer;
+        }
+        .opt5-card.collapsed-smart .legend-inner-items { display: none; }
+        .opt5-card.collapsed-smart .opt5-timer-bar { display: none; }
+    </style>
+</head>
+<body>
+
+<div class="preview-section">
+    <div class="device-frame">
+        <div id="sim-app">
+            <div id="sim-map-container">
+                <div id="sim-map"></div>
+            </div>
+            
+            <!-- Dynamic Legend Injection Point -->
+            <div id="dynamic-legend-mount"></div>
+
+            <!-- Mock Bottom Sheet -->
+            <div id="sim-sidebar">
+                <header>
+                    <div class="header-left">
+                        <h1>Brooklyn Half Closures</h1>
+                        <p>Select a street to view details.</p>
+                    </div>
+                    <!-- Injection point for Option 4 Inline Action Button -->
+                    <div id="sheet-btn-mount"></div>
+                </header>
+                <div style="padding: 15px; flex-grow: 1; background: #fff;">
+                    <div style="height: 12px; background: #eee; border-radius: 4px; margin-bottom: 10px; width: 80%;"></div>
+                    <div style="height: 12px; background: #eee; border-radius: 4px; margin-bottom: 10px; width: 60%;"></div>
+                    <div style="height: 12px; background: #eee; border-radius: 4px; width: 90%;"></div>
+                </div>
+            </div>
+
+            <!-- Global inline modal mount for Option 4 -->
+            <div class="opt4-modal" id="opt4-modal">
+                <h4>Map Legend</h4>
+                <div class="legend-inner-items">
+                    <div class="sim-legend-item"><div class="sim-legend-icon closure-line"></div><span>Street closures</span></div>
+                    <div class="sim-legend-item"><div class="sim-legend-icon course-ribbon"><div class="ribbon-core"></div></div><span>Race course</span></div>
+                    <div class="sim-legend-item"><div class="sim-legend-icon runner-swarm"><span class="dot"></span><span class="dot"></span><span class="dot"></span></div><span>Running pack</span></div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="control-panel">
+    <h2>Collapsible Legend Options</h2>
+    
+    <div class="option-card active" data-opt="1">
+        <h3>1. Floating Accordion Header <span class="badge">Simple</span></h3>
+        <p>Clicking the header collapses the card items cleanly into just a compact title row. Familiar and straightforward.</p>
+    </div>
+
+    <div class="option-card" data-opt="2">
+        <h3>2. Floating Action Button (FAB) Pill <span class="badge">Spacious</span></h3>
+        <p>Shrinks the legend entirely into a sleek map action button. Maximizes touch canvas area until explicitly expanded.</p>
+    </div>
+
+    <div class="option-card" data-opt="3">
+        <h3>3. Edge Slide-Out Tab Overlay <span class="badge">Immersive</span></h3>
+        <p>Docks a slender golden handle along the screen's right border. Tapping it slides the full drawer panel out horizontally.</p>
+    </div>
+
+    <div class="option-card" data-opt="4">
+        <h3>4. Bottom Sheet Action Button <span class="badge">Integrated</span></h3>
+        <p>Integrates an info button directly inside the bottom sheet drawer header. Keeps all controls docked in one persistent thumb zone.</p>
+    </div>
+
+    <div class="option-card" data-opt="5">
+        <h3>5. Auto-Hiding Smart Card <span class="badge">Automated</span></h3>
+        <p>Starts fully expanded on load. Automatically shrinks into an unintrusive semi-transparent button after 4 seconds of idleness.</p>
+    </div>
+
+    <button class="copy-btn" id="copy-btn">Copy Implementation Prompt</button>
+</div>
+
+<div id="toast">Implementation prompt copied successfully!</div>
+
+<!-- Leaflet JS -->
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" crossorigin=""></script>
+<script>
+    // Base background map
+    const map = L.map('sim-map', { zoomControl: false }).setView([40.63806, -73.96357], 12);
+    L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/Canvas/World_Light_Gray_Base/MapServer/tile/{z}/{y}/{x}', { attribution: 'Esri' }).addTo(map);
+
+    // Shared internal legend HTML template reused for mounting variants
+    const legendInnerHtml = `
+        <div class="legend-inner-items">
+            <div class="sim-legend-item"><div class="sim-legend-icon closure-line"></div><span>Street closures</span></div>
+            <div class="sim-legend-item"><div class="sim-legend-icon course-ribbon"><div class="ribbon-core"></div></div><span>Race course</span></div>
+            <div class="sim-legend-item"><div class="sim-legend-icon runner-swarm"><span class="dot"></span><span class="dot"></span><span class="dot"></span></div><span>Running pack</span></div>
+        </div>
+    `;
+
+    const mountPoint = document.getElementById('dynamic-legend-mount');
+    const sheetBtnMount = document.getElementById('sheet-btn-mount');
+    const opt4Modal = document.getElementById('opt4-modal');
+    let opt5Timer = null;
+
+    function renderOption(optIndex) {
+        // Reset injection points
+        mountPoint.innerHTML = '';
+        sheetBtnMount.innerHTML = '';
+        opt4Modal.style.display = 'none';
+        clearTimeout(opt5Timer);
+
+        if (optIndex === 1) {
+            // Option 1: Accordion
+            mountPoint.innerHTML = `
+                <div class="opt1-card" id="opt1-card">
+                    <h4><span>Map Legend</span><span class="arrow">▼</span></h4>
+                    ${legendInnerHtml}
+                </div>
+            `;
+            const card = document.getElementById('opt1-card');
+            card.querySelector('h4').addEventListener('click', () => card.classList.toggle('collapsed'));
+        } 
+        else if (optIndex === 2) {
+            // Option 2: FAB Pill
+            mountPoint.innerHTML = `
+                <div class="opt2-wrapper">
+                    <button class="opt2-fab" id="opt2-fab">🗺️ Legend</button>
+                    <div class="opt2-card" id="opt2-card">
+                        <header><h4>Map Legend</h4><span class="close-btn" id="opt2-close">×</span></header>
+                        ${legendInnerHtml}
+                    </div>
+                </div>
+            `;
+            const fab = document.getElementById('opt2-fab');
+            const card = document.getElementById('opt2-card');
+            fab.addEventListener('click', () => { fab.style.display = 'none'; card.style.display = 'block'; });
+            document.getElementById('opt2-close').addEventListener('click', () => { card.style.display = 'none'; fab.style.display = 'flex'; });
+        }
+        else if (optIndex === 3) {
+            // Option 3: Edge Tab
+            // Temporarily override mount alignment to lock flush against edge bounds
+            mountPoint.style.right = '0';
+            mountPoint.innerHTML = `
+                <div class="opt3-drawer" id="opt3-drawer">
+                    <div class="opt3-tab" id="opt3-tab">LEGEND</div>
+                    <div class="opt3-content">
+                        <h4>Map Legend</h4>
+                        ${legendInnerHtml}
+                    </div>
+                </div>
+            `;
+            const drawer = document.getElementById('opt3-drawer');
+            document.getElementById('opt3-tab').addEventListener('click', () => drawer.classList.toggle('open'));
+        }
+        else if (optIndex === 4) {
+            // Option 4: Bottom Sheet Integration
+            mountPoint.style.right = '20px'; // Reset default spacing
+            sheetBtnMount.innerHTML = `<button class="opt4-sheet-btn" id="opt4-btn">ℹ️</button>`;
+            const btn = document.getElementById('opt4-btn');
+            btn.addEventListener('click', (e) => {
+                e.stopPropagation(); // prevent triggering drawer swipe
+                opt4Modal.style.display = opt4Modal.style.display === 'block' ? 'none' : 'block';
+            });
+        }
+        else if (optIndex === 5) {
+            // Option 5: Smart Timeout Card
+            mountPoint.style.right = '20px';
+            mountPoint.innerHTML = `
+                <div class="opt5-card" id="opt5-card">
+                    <h4>Map Legend</h4>
+                    ${legendInnerHtml}
+                    <div class="opt5-timer-bar" id="opt5-bar"></div>
+                </div>
+            `;
+            const card = document.getElementById('opt5-card');
+            const bar = document.getElementById('opt5-bar');
+            
+            // Kick off shrink progress bar animation
+            setTimeout(() => bar.style.width = '0%', 50);
+            
+            opt5Timer = setTimeout(() => {
+                card.classList.add('collapsed-smart');
+            }, 4000);
+
+            card.addEventListener('click', () => {
+                clearTimeout(opt5Timer);
+                card.classList.remove('collapsed-smart');
+                bar.style.width = '100%';
+                setTimeout(() => bar.style.width = '0%', 50);
+                opt5Timer = setTimeout(() => card.classList.add('collapsed-smart'), 4000);
+            });
+        }
+    }
+
+    // Interactivity bindings
+    const optionCards = document.querySelectorAll('.option-card');
+    let currentSelection = 1;
+
+    optionCards.forEach(card => {
+        card.addEventListener('click', () => {
+            optionCards.forEach(c => c.classList.remove('active'));
+            card.classList.add('active');
+            currentSelection = parseInt(card.dataset.opt, 10);
+            renderOption(currentSelection);
+        });
+    });
+
+    // Initial view setup
+    renderOption(1);
+
+    // AI Instruction Prompt Compiler Maps
+    const prompts = {
+        1: `Please implement the **Floating Accordion Header** collapsible legend strategy on mobile viewports inside \`styles.css\` (\`@media (max-width: 768px)\`) and add interaction bindings in \`app.js\`.
+- **CSS Specifications**: Apply \`height: max-content !important\` on load. When a \`.collapsed\` class is active on the legend box, apply \`display: none\` to the inner item container rows and rotate a small title bar chevron icon cleanly.
+- **JS Specifications**: Query the legend header element and append a click listener that toggles the \`.collapsed\` state class natively.`,
+        
+        2: `Please implement the **Floating Action Button (FAB) Pill** collapsible legend strategy on mobile viewports.
+- **CSS Specifications**: Hide the standard open legend box on mobile load. Render a golden/dark pill button (\`🗺️ Legend\`) positioned in the top right corner.
+- **JS Specifications**: In \`app.js\`, attach toggle listeners so clicking the pill hides the button and displays the complete legend overlay block. Implement an "X" close button inside the card header that reverses the state.`,
+        
+        3: `Please implement the **Edge Slide-Out Tab Overlay** collapsible legend strategy for mobile viewports.
+- **CSS Specifications**: Dock the legend panel strictly flush against the right screen border using \`position: fixed; right: 0; top: 20px;\`. Use \`transform: translateX(...)\` to hide the body contents while leaving a narrow vertical \`LEGEND\` side-tab exposed.
+- **JS Specifications**: Add a toggle event handler to the side-tab element that sets an \`.open\` state class on the drawer to smoothly animate it into full horizontal view.`,
+        
+        4: `Please implement the **Bottom Sheet Action Button** collapsible legend strategy on mobile screens.
+- **CSS Specifications**: Completely hide the top-right floating legend container on viewports below 768px.
+- **HTML/JS Specifications**: Inject a sleek information icon button inside the bottom sheet sidebar header row. Add a click listener to this trigger button that opens a compact floating legend popup overlay mounted directly above the bottom sheet thumb zone. Prevent drawer swipe tracking conflicts by calling \`e.stopPropagation()\`.`,
+        
+        5: `Please implement the **Auto-Hiding Smart Card** collapsible legend strategy on mobile devices.
+- **CSS Specifications**: Render the legend box fully expanded on load. Define a \`.collapsed-smart\` modifier class that reduces the container opacity and scale significantly while hiding interior item labels.
+- **JS Specifications**: Set a background timeout timer in \`app.js\` that automatically appends the \`.collapsed-smart\` class after 4 seconds of inactivity. Tapping or interacting with the shrunk widget should instantly strip the class, reset the timer, and restore full legibility.`
+    };
+
+    const copyBtn = document.getElementById('copy-btn');
+    copyBtn.addEventListener('click', () => {
+        navigator.clipboard.writeText(prompts[currentSelection]).then(() => {
+            copyBtn.classList.add('copied');
+            copyBtn.innerText = 'Prompt Copied Successfully!';
+            
+            const toast = document.getElementById('toast');
+            toast.style.display = 'block';
+            setTimeout(() => { 
+                toast.style.display = 'none';
+                copyBtn.classList.remove('copied');
+                copyBtn.innerText = 'Copy Implementation Prompt';
+            }, 3500);
+        }).catch(() => alert('Copy failed. Please try selecting the prompt text manually.'));
+    });
+</script>
+</body>
+</html>

@@ -1,0 +1,178 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Map View & Zoom Tuner</title>
+    <!-- Leaflet CSS -->
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" crossorigin=""/>
+    <style>
+        body {
+            margin: 0;
+            padding: 0;
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+        }
+        #map {
+            width: 100vw;
+            height: 100vh;
+        }
+        .control-panel {
+            position: fixed;
+            top: 20px;
+            right: 20px;
+            background: rgba(255, 255, 255, 0.95);
+            padding: 20px;
+            border-radius: 8px;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+            z-index: 10000;
+            width: 300px;
+        }
+        h2 { margin-top: 0; color: #0B1B3D; font-size: 1.2rem; }
+        .data-line {
+            display: flex;
+            justify-content: space-between;
+            margin-bottom: 10px;
+            font-family: monospace;
+            font-size: 0.9rem;
+        }
+        .copy-btn {
+            background-color: #0B1B3D;
+            color: white;
+            border: none;
+            padding: 10px 15px;
+            border-radius: 6px;
+            cursor: pointer;
+            font-weight: 600;
+            transition: background 0.2s;
+            width: 100%;
+            margin-top: 10px;
+        }
+        .copy-btn:hover { background-color: #1557b0; }
+        .copy-btn.copied { background-color: #0f9d58; }
+        
+        #toast {
+            position: fixed;
+            bottom: 30px;
+            left: 50%;
+            transform: translateX(-50%);
+            background: #333;
+            color: white;
+            padding: 12px 24px;
+            border-radius: 8px;
+            display: none;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+            z-index: 10000;
+        }
+    </style>
+</head>
+<body>
+
+<div id="map"></div>
+
+<div class="control-panel">
+    <h2>Position & Zoom Tuner</h2>
+    <p style="font-size: 0.85rem; color: #666;">Pan and zoom the map to your desired default view, then copy the prompt.</p>
+    
+    <div class="data-line">
+        <span>Zoom Level:</span>
+        <span id="zoom-val">--</span>
+    </div>
+    <div class="data-line">
+        <span>Center Lat:</span>
+        <span id="lat-val">--</span>
+    </div>
+    <div class="data-line">
+        <span>Center Lng:</span>
+        <span id="lng-val">--</span>
+    </div>
+    
+    <button class="copy-btn" id="copy-btn">Copy Prompt</button>
+</div>
+
+<div id="toast">Positioning prompt copied to clipboard!</div>
+
+<!-- Leaflet JS -->
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" crossorigin=""></script>
+<!-- Load the real closures data -->
+<script src="data.js"></script>
+<script>
+    // Initialize map with Esri Light Gray Canvas
+    const map = L.map('map').setView([40.6200, -73.9650], 12);
+    L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/Canvas/World_Light_Gray_Base/MapServer/tile/{z}/{y}/{x}', {
+        attribution: 'Esri'
+    }).addTo(map);
+
+    // Plot the closures statically so the user can see the framing
+    const lineStyle = {
+        color: '#d93025',
+        weight: 3,
+        opacity: 0.8
+    };
+
+    const layers = [];
+    closuresData.forEach(item => {
+        if (Array.isArray(item.latlngs[0][0])) {
+            item.latlngs.forEach(subPath => {
+                layers.push(L.polyline(subPath, lineStyle).addTo(map));
+            });
+        } else {
+            layers.push(L.polyline(item.latlngs, lineStyle).addTo(map));
+        }
+    });
+
+    // Replicate the current fitBounds behavior to show them the starting point
+    if (layers.length > 0) {
+        const group = new L.featureGroup(layers);
+        const bounds = group.getBounds();
+        if (bounds.isValid()) {
+            map.fitBounds(bounds, { padding: [20, 20] });
+        }
+    }
+
+    const zoomVal = document.getElementById('zoom-val');
+    const latVal = document.getElementById('lat-val');
+    const lngVal = document.getElementById('lng-val');
+    const copyBtn = document.getElementById('copy-btn');
+
+    function updateDisplay() {
+        const center = map.getCenter();
+        zoomVal.textContent = map.getZoom();
+        latVal.textContent = center.lat.toFixed(5);
+        lngVal.textContent = center.lng.toFixed(5);
+    }
+
+    // Event listeners to update position readouts
+    map.on('moveend', updateDisplay);
+    map.on('zoomend', updateDisplay);
+    
+    // Initial run
+    setTimeout(updateDisplay, 100);
+
+    // Copy Prompt Logic
+    copyBtn.addEventListener('click', () => {
+        const zoom = map.getZoom();
+        const center = map.getCenter();
+        const lat = center.lat.toFixed(5);
+        const lng = center.lng.toFixed(5);
+
+        const promptText = `Please update the initial map positioning in app.js. 
+Instead of using fitBounds on load, hardcode the view to center on \`[${lat}, ${lng}]\` with a default zoom level of \`${zoom}\` by replacing the fitBounds logic at startup.`;
+
+        navigator.clipboard.writeText(promptText).then(() => {
+            copyBtn.classList.add('copied');
+            copyBtn.innerText = 'Copied!';
+            
+            const toast = document.getElementById('toast');
+            toast.style.display = 'block';
+            setTimeout(() => { 
+                toast.style.display = 'none';
+                copyBtn.classList.remove('copied');
+                copyBtn.innerText = 'Copy Prompt';
+            }, 3000);
+        }).catch(err => {
+            alert('Copy failed.');
+        });
+    });
+</script>
+</body>
+</html>

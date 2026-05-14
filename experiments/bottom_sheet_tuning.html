@@ -1,0 +1,592 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+    <title>Bottom Sheet Mobile Tuning Tool</title>
+    <style>
+        :root {
+            --safe-area-bottom: env(safe-area-inset-bottom, 0px);
+            --expanded-buffer: 16px;
+            --collapsed-buffer: 8px;
+            --viewport-unit: 1vh;
+            --position-type: fixed;
+            --bottom-offset: 0px;
+            --header-height: 130px; /* Fallback, updated by JS */
+        }
+
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+        }
+
+        body, html {
+            height: 100%;
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+            overflow: hidden;
+            background-color: #121212;
+            color: #e0e0e0;
+        }
+
+        /* Simulated Map Background */
+        #simulated-map {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: radial-gradient(circle, #2c2c2c 10%, #1a1a1a 90%);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            z-index: 1;
+        }
+
+        #map-grid {
+            width: 100%;
+            height: 100%;
+            opacity: 0.1;
+            background-image: 
+                linear-gradient(to right, #ccc 1px, transparent 1px),
+                linear-gradient(to bottom, #ccc 1px, transparent 1px);
+            background-size: 40px 40px;
+        }
+
+        /* Tuning Control Panel - Fixed at top */
+        #control-panel {
+            position: absolute;
+            top: 10px;
+            left: 10px;
+            right: 10px;
+            background: rgba(30, 30, 30, 0.95);
+            border: 1px solid #444;
+            border-radius: 8px;
+            padding: 15px;
+            z-index: 10000;
+            max-height: 50vh;
+            overflow-y: auto;
+            box-shadow: 0 4px 20px rgba(0,0,0,0.5);
+        }
+
+        h2 {
+            font-size: 1.1rem;
+            margin-bottom: 10px;
+            color: #FDB813;
+            text-transform: uppercase;
+        }
+
+        .control-group {
+            margin-bottom: 12px;
+        }
+
+        label {
+            display: block;
+            font-size: 0.8rem;
+            margin-bottom: 4px;
+            color: #aaa;
+        }
+
+        select, input[type="range"], button {
+            width: 100%;
+            padding: 8px;
+            background: #2a2a2a;
+            border: 1px solid #555;
+            color: #fff;
+            border-radius: 4px;
+            font-size: 0.9rem;
+        }
+
+        input[type="range"] {
+            padding: 0;
+        }
+
+        .value-display {
+            float: right;
+            color: #FDB813;
+            font-weight: bold;
+        }
+
+        button.action-btn {
+            background: #FDB813;
+            color: #000;
+            font-weight: bold;
+            border: none;
+            cursor: pointer;
+            margin-top: 10px;
+            transition: background 0.2s;
+        }
+
+        button.action-btn:hover {
+            background: #feca57;
+        }
+
+        /* Info Readout */
+        #info-readout {
+            font-family: monospace;
+            font-size: 0.75rem;
+            background: #000;
+            padding: 8px;
+            border-radius: 4px;
+            margin-top: 10px;
+            border: 1px solid #333;
+        }
+
+        /* The Simulated Bottom Sheet */
+        #tuning-sidebar {
+            position: var(--position-type);
+            bottom: var(--bottom-offset);
+            left: 0;
+            right: 0;
+            width: 100%;
+            background-color: #1e1e1e;
+            border-top: 2px solid #FDB813;
+            border-radius: 20px 20px 0 0;
+            box-shadow: 0 -4px 20px rgba(0,0,0,0.5);
+            z-index: 2000;
+            
+            /* Height calculation options */
+            height: auto;
+            max-height: 85vh; 
+            
+            /* Expanded state styles */
+            padding-bottom: calc(var(--safe-area-bottom) + var(--expanded-buffer));
+            transition: transform 0.3s cubic-bezier(0.25, 1, 0.5, 1), padding-bottom 0.3s ease;
+        }
+
+        /* Collapsed State Simulation */
+        #tuning-sidebar.collapsed {
+            padding-bottom: calc(var(--safe-area-bottom) + var(--collapsed-buffer));
+            /* Translate to hide content, leaving only header + safe area + collapsed buffer */
+            transform: translateY(calc(100% - (var(--header-height) + var(--safe-area-bottom) + var(--collapsed-buffer))));
+        }
+
+        /* Simulated Header */
+        #tuning-sidebar header {
+            padding: 15px;
+            background-color: #FDB813;
+            color: #000;
+            border-radius: 18px 18px 0 0;
+            position: relative;
+        }
+
+        #tuning-sidebar header h1 {
+            font-size: 1.2rem;
+            font-weight: 900;
+            text-transform: uppercase;
+        }
+
+        #tuning-sidebar header p {
+            font-size: 0.75rem;
+            font-weight: bold;
+            opacity: 0.8;
+        }
+
+        /* Slider Container */
+        .sim-slider-container {
+            margin-top: 10px;
+            background: #000;
+            color: #fff;
+            padding: 10px;
+            border-radius: 4px;
+            border: 1px solid #333;
+        }
+
+        .sim-slider-container label {
+            display: flex;
+            justify-content: space-between;
+            font-weight: bold;
+            margin-bottom: 5px;
+            color: #fff;
+            font-size: 0.8rem;
+        }
+
+        .sim-slider-container span {
+            color: #FDB813;
+        }
+
+        #sim-time-slider {
+            width: 100%;
+            accent-color: #FDB813;
+        }
+
+        /* Visual Indicator for Safe Area / Buffer */
+        #buffer-visualizer {
+            position: absolute;
+            bottom: 0;
+            left: 0;
+            right: 0;
+            background: rgba(219, 68, 85, 0.3);
+            border-top: 1px dashed #db4437;
+            pointer-events: none;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 0.7rem;
+            color: #ff8a80;
+            font-weight: bold;
+            z-index: 10;
+        }
+
+        #toggle-sheet-btn {
+            position: absolute;
+            top: -40px;
+            right: 10px;
+            background: #FDB813;
+            color: #000;
+            border: none;
+            padding: 8px 12px;
+            border-radius: 4px 4px 0 0;
+            font-weight: bold;
+            font-size: 0.8rem;
+            cursor: pointer;
+            box-shadow: 0 -2px 10px rgba(0,0,0,0.3);
+        }
+
+        /* Overlay to show actual viewport limits */
+        #viewport-visual-limit {
+            position: fixed;
+            bottom: 0;
+            left: 0;
+            right: 0;
+            height: 1px;
+            background: lime;
+            z-index: 99999;
+            box-shadow: 0 0 5px lime;
+            pointer-events: none;
+        }
+        #viewport-visual-limit::after {
+            content: "WINDOW BOTTOM (0px)";
+            position: absolute;
+            right: 10px;
+            bottom: 2px;
+            font-size: 9px;
+            color: lime;
+            font-family: monospace;
+        }
+    </style>
+</head>
+<body>
+
+    <div id="simulated-map">
+        <div id="map-grid"></div>
+    </div>
+
+    <div id="viewport-visual-limit"></div>
+
+    <div id="control-panel">
+        <h2>B-Sheet Tuning Controls</h2>
+        
+        <div class="control-group">
+            <label for="approach-select">Positioning Approach:</label>
+            <select id="approach-select">
+                <option value="css-modern">1. CSS Modern (dvh + fixed)</option>
+                <option value="css-fallback">2. CSS Fallback (vh + extra buffer)</option>
+                <option value="js-visualviewport">3. JS VisualViewport API</option>
+                <option value="css-absolute-container">4. Absolute in 100% Container</option>
+            </select>
+        </div>
+
+        <div class="control-group">
+            <label for="viewport-unit-select">Viewport Unit (for app container):</label>
+            <select id="viewport-unit-select">
+                <option value="dvh">dvh (Dynamic VH)</option>
+                <option value="svh">svh (Small VH)</option>
+                <option value="lvh">lvh (Large VH)</option>
+                <option value="vh">vh (Standard VH)</option>
+                <option value="100percent">100% (Percentage)</option>
+            </select>
+        </div>
+
+        <div class="control-group">
+            <label for="expanded-buffer-range">Expanded Bottom Buffer: <span class="value-display" id="expanded-buffer-val">16px</span></label>
+            <input type="range" id="expanded-buffer-range" min="0" max="100" value="16">
+        </div>
+
+        <div class="control-group">
+            <label for="collapsed-buffer-range">Collapsed Bottom Buffer: <span class="value-display" id="collapsed-buffer-val">8px</span></label>
+            <input type="range" id="collapsed-buffer-range" min="0" max="100" value="8">
+        </div>
+
+        <div class="control-group">
+            <label for="safe-area-select">Safe Area Inset Simulation:</label>
+            <select id="safe-area-select">
+                <option value="env">Use Browser env() (Real Device)</option>
+                <option value="0">Force 0px (No Notch)</option>
+                <option value="20">Force 20px (Average iOS/Android)</option>
+                <option value="34">Force 34px (iPhone Max Notch)</option>
+                <option value="44">Force 44px (Extreme Notch)</option>
+            </select>
+        </div>
+
+        <div class="control-group">
+            <label for="position-select">CSS Position:</label>
+            <select id="position-select">
+                <option value="fixed">fixed</option>
+                <option value="absolute">absolute</option>
+            </select>
+        </div>
+
+        <button class="action-btn" id="copy-prompt-btn">Copy Implementation Prompt</button>
+        
+        <div id="info-readout">
+            Detecting device info...
+        </div>
+    </div>
+
+    <!-- Simulated Bottom Sheet -->
+    <div id="tuning-sidebar">
+        <button id="toggle-sheet-btn">Collapse/Expand</button>
+        <header id="sidebar-header">
+            <h1>Brooklyn Half Closures</h1>
+            <p>Drag or toggle to test responsiveness</p>
+            
+            <div class="sim-slider-container">
+                <label for="sim-time-slider">Time: <span>7:00 AM</span></label>
+                <input type="range" id="sim-time-slider" min="-1" max="900" value="420">
+            </div>
+        </header>
+        
+        <div style="padding: 20px; color: #888; font-size: 0.85rem; text-align: center;">
+            <p>Simulated content list area...</p>
+            <p style="margin-top: 10px;">Test how this handles keyboard or browser address bar changes on your mobile device.</p>
+        </div>
+
+        <!-- Visualizer for the padding-bottom area -->
+        <div id="buffer-visualizer">BUFFER AREA</div>
+    </div>
+
+    <script>
+        const root = document.documentElement;
+        const sidebar = document.getElementById('tuning-sidebar');
+        const header = document.getElementById('sidebar-header');
+        const bufferVisualizer = document.getElementById('buffer-visualizer');
+        
+        // Control Elements
+        const approachSelect = document.getElementById('approach-select');
+        const viewportUnitSelect = document.getElementById('viewport-unit-select');
+        const expandedBufferRange = document.getElementById('expanded-buffer-range');
+        const collapsedBufferRange = document.getElementById('collapsed-buffer-range');
+        const safeAreaSelect = document.getElementById('safe-area-select');
+        const positionSelect = document.getElementById('position-select');
+        const copyPromptBtn = document.getElementById('copy-prompt-btn');
+        const infoReadout = document.getElementById('info-readout');
+        const toggleSheetBtn = document.getElementById('toggle-sheet-btn');
+        
+        const expandedBufferValDisplay = document.getElementById('expanded-buffer-val');
+        const collapsedBufferValDisplay = document.getElementById('collapsed-buffer-val');
+
+        // State
+        let isCollapsed = false;
+
+        // Measure and update header height dynamically
+        function updateHeaderHeight() {
+            if (header) {
+                const rect = header.getBoundingClientRect();
+                root.style.setProperty('--header-height', `${rect.height}px`);
+            }
+        }
+
+        // Update Visuals and CSS Variables
+        function updateTuning() {
+            const approach = approachSelect.value;
+            const viewportUnit = viewportUnitSelect.value;
+            const expandedBuffer = expandedBufferRange.value;
+            const collapsedBuffer = collapsedBufferRange.value;
+            const safeArea = safeAreaSelect.value;
+            const position = positionSelect.value;
+
+            expandedBufferValDisplay.textContent = `${expandedBuffer}px`;
+            collapsedBufferValDisplay.textContent = `${collapsedBuffer}px`;
+
+            // Apply Buffers
+            root.style.setProperty('--expanded-buffer', `${expandedBuffer}px`);
+            root.style.setProperty('--collapsed-buffer', `${collapsedBuffer}px`);
+            
+            // Apply Safe Area Simulation
+            if (safeArea === 'env') {
+                root.style.setProperty('--safe-area-bottom', 'env(safe-area-inset-bottom, 0px)');
+            } else {
+                root.style.setProperty('--safe-area-bottom', `${safeArea}px`);
+            }
+
+            // Apply Position
+            root.style.setProperty('--position-type', position);
+
+            // Update Buffer Visualizer Height based on current state
+            const safeAreaPx = safeArea === 'env' ? 0 : parseInt(safeArea);
+            const currentBuffer = isCollapsed ? collapsedBuffer : expandedBuffer;
+            const totalBufferHeight = parseInt(currentBuffer) + safeAreaPx;
+            
+            bufferVisualizer.style.height = `${totalBufferHeight}px`;
+            bufferVisualizer.textContent = `${isCollapsed ? 'COLLAPSED' : 'EXPANDED'} BUFFER + SAFE AREA: ${totalBufferHeight}px`;
+
+            // Approach Specific Adjustments
+            if (approach === 'css-modern') {
+                viewportUnitSelect.value = 'dvh';
+                positionSelect.value = 'fixed';
+                root.style.setProperty('--bottom-offset', '0px');
+            } else if (approach === 'css-fallback') {
+                viewportUnitSelect.value = 'vh';
+                positionSelect.value = 'fixed';
+                root.style.setProperty('--bottom-offset', '0px');
+            } else if (approach === 'js-visualviewport') {
+                positionSelect.value = 'fixed';
+                // JS will handle offset, see visualViewport listener below
+            } else if (approach === 'css-absolute-container') {
+                viewportUnitSelect.value = '100percent';
+                positionSelect.value = 'absolute';
+                root.style.setProperty('--bottom-offset', '0px');
+            }
+
+            updateHeaderHeight();
+            updateReadout();
+        }
+
+        function updateReadout() {
+            const vp = window.visualViewport;
+            infoReadout.innerHTML = `
+                <b>Viewport Stats:</b><br>
+                window.innerHeight: ${window.innerHeight}px<br>
+                header.height: ${header ? Math.round(header.getBoundingClientRect().height) : 0}px<br>
+                ${vp ? `visualViewport.height: ${Math.round(vp.height)}px<br>
+                visualViewport.offsetTop: ${Math.round(vp.offsetTop)}px` : 'VisualViewport API not supported'}
+            `;
+        }
+
+        // VisualViewport API Handling (Approach 3)
+        if (window.visualViewport) {
+            const handleVP = () => {
+                updateReadout();
+                if (approachSelect.value === 'js-visualviewport') {
+                    const vp = window.visualViewport;
+                    const offset = window.innerHeight - vp.height - vp.offsetTop;
+                    root.style.setProperty('--bottom-offset', `${Math.max(0, offset)}px`);
+                }
+            };
+            window.visualViewport.addEventListener('resize', handleVP);
+            window.visualViewport.addEventListener('scroll', handleVP);
+        }
+
+        window.addEventListener('resize', () => {
+            updateHeaderHeight();
+            updateTuning();
+        });
+        
+        window.addEventListener('orientationchange', () => {
+            setTimeout(() => {
+                updateHeaderHeight();
+                updateTuning();
+            }, 200);
+        });
+
+        // Toggle Sheet
+        toggleSheetBtn.addEventListener('click', () => {
+            isCollapsed = !isCollapsed;
+            if (isCollapsed) {
+                sidebar.classList.add('collapsed');
+            } else {
+                sidebar.classList.remove('collapsed');
+            }
+            // Update tuning to refresh visualizer height
+            updateTuning();
+        });
+
+        // Event Listeners for Controls
+        [approachSelect, viewportUnitSelect, expandedBufferRange, collapsedBufferRange, safeAreaSelect, positionSelect].forEach(el => {
+            el.addEventListener('input', updateTuning);
+        });
+
+        // Copy Prompt Logic
+        copyPromptBtn.addEventListener('click', () => {
+            const approach = approachSelect.value;
+            const viewportUnit = viewportUnitSelect.value;
+            const expandedBuffer = expandedBufferRange.value;
+            const collapsedBuffer = collapsedBufferRange.value;
+            const safeArea = safeAreaSelect.value;
+            const position = positionSelect.value;
+
+            let promptText = `Please optimize the mobile bottom sheet positioning to prevent it from being hidden by browser chrome/UI on iOS and Android. I need independent control over the bottom buffer in both expanded and collapsed states.
+
+Selected Configuration from Tuning Tool:
+- **Approach**: ${approachSelect.options[approachSelect.selectedIndex].text}
+- **Viewport Unit for App Container**: \`${viewportUnit}\`
+- **Expanded Bottom Buffer**: \`${expandedBuffer}px\`
+- **Collapsed Bottom Buffer**: \`${collapsedBuffer}px\`
+- **CSS Position**: \`${position}\`
+- **Safe Area Handling**: Use \`env(safe-area-inset-bottom, ${safeArea === 'env' ? '16px' : safeArea + 'px'})\`
+
+### Recommended CSS Changes:
+1. Update \`#app\` to use height \`100${viewportUnit === '100percent' ? '%' : viewportUnit}\` (or \`100dvh\` if supported, with fallback).
+2. In \`styles.css\` under \`@media (max-width: 768px)\`, define buffer variables and update \`#sidebar\` (the bottom sheet) positioning and padding:
+   \`\`\`css
+   #sidebar {
+       position: ${position};
+       bottom: 0;
+       
+       /* Buffers */
+       --expanded-buffer: ${expandedBuffer}px;
+       --collapsed-buffer: ${collapsedBuffer}px;
+       
+       /* Default to expanded padding */
+       padding-bottom: calc(env(safe-area-inset-bottom, 16px) + var(--expanded-buffer));
+       transition: height 0.3s cubic-bezier(0.25, 1, 0.5, 1), padding-bottom 0.3s ease;
+   }
+   
+   /* When collapsed or when applying collapsed height */
+   #sidebar.collapsed {
+       padding-bottom: calc(env(safe-area-inset-bottom, 16px) + var(--collapsed-buffer));
+   }
+   \`\`\`
+
+3. Update the JavaScript height calculations in \`app.js\` to respect these buffers.
+   For example, in \`getSnapHeights()\`, the collapsed height should include the collapsed buffer:
+   \`\`\`javascript
+   function getSnapHeights() {
+       const vh = window.innerHeight;
+       const safeAreaBottom = parseInt(getComputedStyle(document.documentElement).getPropertyValue('--safe-area-inset-bottom')) || 16; // fallback
+       const collapsedBuffer = ${collapsedBuffer};
+       
+       return {
+           collapsed: sidebarHeader.offsetHeight + safeAreaBottom + collapsedBuffer,
+           default: vh * 0.25,
+           expanded: vh * 0.85
+       };
+   }
+   \`\`\`
+`;
+
+            if (approach === 'js-visualviewport') {
+                promptText += `
+4. Add JavaScript listener in \`app.js\` to dynamically adjust bottom positioning using VisualViewport API:
+   \`\`\`javascript
+   if (window.visualViewport) {
+       const adjustBottomSheet = () => {
+           const vp = window.visualViewport;
+           const offset = window.innerHeight - vp.height - vp.offsetTop;
+           sidebar.style.bottom = \`\${Math.max(0, offset)}px\`;
+       };
+       window.visualViewport.addEventListener('resize', adjustBottomSheet);
+       window.visualViewport.addEventListener('scroll', adjustBottomSheet);
+   }
+   \`\`\`
+`;
+            }
+
+            navigator.clipboard.writeText(promptText).then(() => {
+                alert('Prompt copied to clipboard!');
+            }).catch(err => {
+                console.error('Failed to copy: ', err);
+                alert('Failed to copy prompt. You can copy it manually from the console or screen.');
+                console.log(promptText);
+            });
+        });
+
+        // Initial Setup
+        setTimeout(() => {
+            updateHeaderHeight();
+            updateTuning();
+        }, 100);
+    </script>
+</body>
+</html>

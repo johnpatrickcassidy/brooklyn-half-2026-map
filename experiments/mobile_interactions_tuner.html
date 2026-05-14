@@ -1,0 +1,478 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Mobile Bottom Sheet Interactions Tuner</title>
+    <!-- Leaflet CSS -->
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" crossorigin=""/>
+    <style>
+        body {
+            display: flex;
+            height: 100vh;
+            margin: 0;
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+            background: #e9ecef;
+            color: #333;
+            overflow: hidden;
+        }
+
+        /* Preview Area & Device Frame */
+        .preview-section {
+            flex-grow: 1;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            padding: 20px;
+        }
+
+        .viewport-header {
+            margin-bottom: 15px;
+            font-size: 0.9rem;
+            color: #6c757d;
+            font-weight: 600;
+        }
+
+        .device-frame {
+            width: 393px;
+            height: 852px;
+            background: white;
+            border: 14px solid #111;
+            border-radius: 40px;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.2);
+            overflow: hidden;
+            position: relative;
+            display: flex;
+            flex-direction: column;
+            user-select: none;
+        }
+
+        /* Control Panel */
+        .control-panel {
+            width: 420px;
+            background: white;
+            border-left: 1px solid #dee2e6;
+            padding: 25px;
+            overflow-y: auto;
+            box-shadow: -2px 0 12px rgba(0,0,0,0.05);
+            flex-shrink: 0;
+        }
+
+        .control-panel h2 {
+            margin-top: 0;
+            color: #0B1B3D;
+            font-size: 1.4rem;
+            border-bottom: 2px solid #FDB813;
+            padding-bottom: 10px;
+            margin-bottom: 20px;
+        }
+
+        .control-group {
+            margin-bottom: 20px;
+            background: #f8f9fa;
+            padding: 15px;
+            border-radius: 8px;
+            border: 1px solid #e9ecef;
+        }
+
+        .control-group label {
+            display: block;
+            font-weight: 700;
+            font-size: 0.9rem;
+            color: #0B1B3D;
+            margin-bottom: 8px;
+        }
+
+        .control-group select, 
+        .control-group input[type="range"] {
+            width: 100%;
+            padding: 8px;
+            border: 1px solid #ced4da;
+            border-radius: 4px;
+            font-size: 0.9rem;
+            background: white;
+        }
+
+        .range-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 5px;
+        }
+
+        .range-val {
+            font-family: monospace;
+            font-weight: bold;
+            color: #d93025;
+        }
+
+        .copy-btn {
+            background-color: #0B1B3D;
+            color: white;
+            border: none;
+            padding: 14px 20px;
+            border-radius: 8px;
+            cursor: pointer;
+            font-weight: 700;
+            font-size: 1rem;
+            transition: background 0.2s, transform 0.1s;
+            width: 100%;
+            margin-top: 10px;
+            border-bottom: 4px solid #061024;
+        }
+        .copy-btn:hover { background-color: #1557b0; }
+        .copy-btn:active { transform: translateY(2px); border-bottom-width: 2px; }
+        .copy-btn.copied { background-color: #0f9d58; border-color: #0a6c3c; }
+
+        #toast {
+            position: fixed;
+            bottom: 30px;
+            left: calc(50% - 210px);
+            transform: translateX(-50%);
+            background: #111;
+            color: #FDB813;
+            padding: 12px 24px;
+            border-radius: 8px;
+            font-weight: bold;
+            display: none;
+            box-shadow: 0 4px 16px rgba(0,0,0,0.2);
+            z-index: 10000;
+            border-left: 4px solid #FDB813;
+        }
+
+        /* Simulated App Styles */
+        #sim-app {
+            position: relative;
+            width: 100%;
+            height: 100%;
+            display: block;
+        }
+
+        #sim-map {
+            width: 100%;
+            height: 100%;
+        }
+
+        /* Bottom Sheet Drawer */
+        #sim-sidebar {
+            position: absolute;
+            bottom: 0;
+            left: 0;
+            right: 0;
+            background: #f8f9fa;
+            border-top: 2px solid #000;
+            border-radius: 20px 20px 0 0;
+            box-shadow: 0 -4px 20px rgba(0,0,0,0.2);
+            z-index: 2000;
+            display: flex;
+            flex-direction: column;
+            height: var(--current-height, 25%);
+            transition: height 0.3s cubic-bezier(0.25, 1, 0.5, 1);
+        }
+
+        #sim-sidebar.dragging {
+            transition: none;
+        }
+
+        #sim-sidebar::before {
+            content: "";
+            display: block;
+            width: 40px;
+            height: 4px;
+            background: rgba(0, 0, 0, 0.3);
+            border-radius: 2px;
+            margin: 8px auto -12px auto;
+            z-index: 10;
+        }
+
+        #sim-sidebar header {
+            padding: 15px;
+            background: #FDB813;
+            border-bottom: 2px solid #000;
+            touch-action: none;
+            cursor: grab;
+            flex-shrink: 0;
+        }
+        #sim-sidebar header:active { cursor: grabbing; }
+
+        #sim-sidebar header h1 { font-size: 1.2rem; margin: 0; font-weight: 900; text-transform: uppercase; }
+        #sim-sidebar header p { font-size: 0.75rem; margin: 2px 0 0 0; font-weight: bold; }
+
+        #sim-closure-list {
+            list-style: none;
+            margin: 0;
+            padding: 0;
+            overflow-y: auto;
+            flex-grow: 1;
+            touch-action: pan-y;
+        }
+
+        #sim-closure-list li {
+            padding: 12px 15px;
+            border-bottom: 1px solid #ccc;
+            cursor: pointer;
+        }
+        #sim-closure-list li:hover { background: #fff3cd; }
+        #sim-closure-list li h3 { font-size: 1rem; margin: 0; font-weight: 900; }
+        #sim-closure-list li p { font-size: 0.75rem; color: #555; margin: 2px 0 0 0; }
+    </style>
+</head>
+<body>
+
+<div class="preview-section">
+    <div class="viewport-header">
+        <span>Interactive Simulation: Drag header or scroll list to test behavior</span>
+    </div>
+    
+    <div class="device-frame" id="device-frame">
+        <div id="sim-app">
+            <div id="sim-map"></div>
+            <aside id="sim-sidebar">
+                <header id="sim-header">
+                    <h1>Brooklyn Half Closures</h1>
+                    <p>Swipe up/down to expand or collapse</p>
+                </header>
+                <ul id="sim-closure-list">
+                    <!-- Populated via JS -->
+                </ul>
+            </aside>
+        </div>
+    </div>
+</div>
+
+<div class="control-panel">
+    <h2>Mobile Interactions Tuner</h2>
+    
+    <div class="control-group">
+        <div class="range-header">
+            <label for="ctrl-collapsed-offset" style="margin:0;">Collapsed Height Offset (% of VH)</label>
+            <span class="range-val" id="lbl-collapsed-offset">+5%</span>
+        </div>
+        <input type="range" id="ctrl-collapsed-offset" min="0" max="15" value="5" step="1">
+        <small style="color:#666; display:block; margin-top:4px;">Increases base collapsed height so more of the top list item is visible.</small>
+    </div>
+
+    <div class="control-group">
+        <label for="ctrl-interact-mode">Bottom Sheet Scroll & Drag Mode</label>
+        <select id="ctrl-interact-mode">
+            <option value="full" selected>Full Sheet Draggable (Intercept top scroll)</option>
+            <option value="header">Header Drag Only (Current behavior)</option>
+        </select>
+        <small style="color:#666; display:block; margin-top:4px;">'Full Sheet Draggable' allows dragging up/down on the list itself to expand/minimize, preventing pull-to-refresh when at the top.</small>
+    </div>
+
+    <div class="control-group">
+        <div class="range-header">
+            <label for="ctrl-default-height" style="margin:0;">Default Snap Height (% of VH)</label>
+            <span class="range-val" id="lbl-default-height">25%</span>
+        </div>
+        <input type="range" id="ctrl-default-height" min="20" max="45" value="25" step="5">
+    </div>
+
+    <div class="control-group">
+        <div class="range-header">
+            <label for="ctrl-expanded-height" style="margin:0;">Expanded Snap Height (% of VH)</label>
+            <span class="range-val" id="lbl-expanded-height">90%</span>
+        </div>
+        <input type="range" id="ctrl-expanded-height" min="75" max="95" value="90" step="5">
+    </div>
+
+    <button class="copy-btn" id="copy-btn">Copy Implementation Prompt</button>
+</div>
+
+<div id="toast">Implementation prompt copied!</div>
+
+<!-- Leaflet JS -->
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" crossorigin=""></script>
+<script src="../data.js"></script>
+<script>
+    // Initialize Map
+    const map = L.map('sim-map', { zoomControl: false }).setView([40.63806, -73.96357], 12);
+    L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/Canvas/World_Light_Gray_Base/MapServer/tile/{z}/{y}/{x}', { attribution: 'Esri' }).addTo(map);
+
+    // Populate list
+    const simList = document.getElementById('sim-closure-list');
+    closuresData.forEach(item => {
+        const li = document.createElement('li');
+        li.innerHTML = `<h3>${item.street}</h3><p>${item.segment}</p>`;
+        simList.appendChild(li);
+    });
+
+    // Controls & Tuning State
+    const simSidebar = document.getElementById('sim-sidebar');
+    const simHeader = document.getElementById('sim-header');
+    const ctrlCollapsedOffset = document.getElementById('ctrl-collapsed-offset');
+    const ctrlInteractMode = document.getElementById('ctrl-interact-mode');
+    const ctrlDefaultHeight = document.getElementById('ctrl-default-height');
+    const ctrlExpandedHeight = document.getElementById('ctrl-expanded-height');
+
+    const lblCollapsedOffset = document.getElementById('lbl-collapsed-offset');
+    const lblDefaultHeight = document.getElementById('lbl-default-height');
+    const lblExpandedHeight = document.getElementById('lbl-expanded-height');
+
+    const deviceFrame = document.getElementById('device-frame');
+
+    function getSnapHeights() {
+        const vh = deviceFrame.offsetHeight;
+        const baseCollapsed = simHeader.offsetHeight + 10;
+        const offsetPct = parseInt(ctrlCollapsedOffset.value, 10);
+        const extraOffset = (vh * offsetPct) / 100;
+        
+        return {
+            collapsed: baseCollapsed + extraOffset,
+            default: (vh * parseInt(ctrlDefaultHeight.value, 10)) / 100,
+            expanded: (vh * parseInt(ctrlExpandedHeight.value, 10)) / 100
+        };
+    }
+
+    function updateLabels() {
+        lblCollapsedOffset.innerText = `+${ctrlCollapsedOffset.value}%`;
+        lblDefaultHeight.innerText = `${ctrlDefaultHeight.value}%`;
+        lblExpandedHeight.innerText = `${ctrlExpandedHeight.value}%`;
+        
+        // Reset to default height to preview changes
+        const snaps = getSnapHeights();
+        simSidebar.style.height = `${snaps.default}px`;
+    }
+
+    ctrlCollapsedOffset.addEventListener('input', updateLabels);
+    ctrlDefaultHeight.addEventListener('input', updateLabels);
+    ctrlExpandedHeight.addEventListener('input', updateLabels);
+
+    // Drawer Touch Logic Simulation
+    let startY = 0;
+    let currentY = 0;
+    let initialHeight = 0;
+    let isDragging = false;
+    let dragMode = 'none'; // 'header', 'sheet', 'scroll'
+    let initialScrollTop = 0;
+
+    // We simulate mouse events as touch for desktop testing
+    function startDrag(clientY, target) {
+        const mode = ctrlInteractMode.value;
+        startY = clientY;
+        currentY = startY;
+        initialHeight = simSidebar.offsetHeight;
+        initialScrollTop = simList.scrollTop;
+        const snaps = getSnapHeights();
+
+        if (target.closest('#sim-header')) {
+            isDragging = true;
+            dragMode = 'header';
+            simSidebar.classList.add('dragging');
+        } else if (mode === 'full' && target.closest('#sim-closure-list')) {
+            // If sheet is not fully expanded, dragging list should expand it
+            if (initialHeight < snaps.expanded - 10) {
+                isDragging = true;
+                dragMode = 'sheet';
+                simSidebar.classList.add('dragging');
+            } else if (initialScrollTop === 0) {
+                // If expanded but at top of list, prepare to intercept pull-down
+                isDragging = true;
+                dragMode = 'pending-collapse';
+                simSidebar.classList.add('dragging');
+            }
+        }
+    }
+
+    function moveDrag(clientY, e) {
+        if (!isDragging) return;
+        currentY = clientY;
+        const deltaY = startY - currentY; // positive means drag up
+        const snaps = getSnapHeights();
+
+        if (dragMode === 'pending-collapse') {
+            if (deltaY < -5) { // Dragging down
+                dragMode = 'sheet'; // Intercept and collapse
+            } else if (deltaY > 5) {
+                // Dragging up, let it scroll native
+                isDragging = false;
+                simSidebar.classList.remove('dragging');
+                return;
+            }
+        }
+
+        if (dragMode === 'header' || dragMode === 'sheet') {
+            const newHeight = initialHeight + deltaY;
+            simSidebar.style.height = `${Math.max(snaps.collapsed, Math.min(snaps.expanded, newHeight))}px`;
+            if (e && e.cancelable) e.preventDefault(); // Prevent scroll / refresh
+        }
+    }
+
+    function endDrag() {
+        if (!isDragging) return;
+        isDragging = false;
+        simSidebar.classList.remove('dragging');
+        if (dragMode === 'pending-collapse') return;
+
+        const finalHeight = simSidebar.offsetHeight;
+        const snaps = getSnapHeights();
+        const distCollapsed = Math.abs(finalHeight - snaps.collapsed);
+        const distDefault = Math.abs(finalHeight - snaps.default);
+        const distExpanded = Math.abs(finalHeight - snaps.expanded);
+
+        let targetHeight = snaps.default;
+        if (distCollapsed < distDefault && distCollapsed < distExpanded) targetHeight = snaps.collapsed;
+        else if (distExpanded < distDefault && distExpanded < distCollapsed) targetHeight = snaps.expanded;
+
+        // Velocity / directional snapping
+        const totalDelta = startY - currentY;
+        if (Math.abs(totalDelta) > 30) {
+            if (totalDelta > 30) targetHeight = finalHeight > snaps.default ? snaps.expanded : snaps.default;
+            else targetHeight = finalHeight < snaps.default ? snaps.collapsed : snaps.default;
+        }
+
+        simSidebar.style.height = `${targetHeight}px`;
+    }
+
+    // Mouse Listeners for Desktop Simulator Testing
+    simSidebar.addEventListener('mousedown', (e) => startDrag(e.clientY, e.target));
+    window.addEventListener('mousemove', (e) => moveDrag(e.clientY, e));
+    window.addEventListener('mouseup', endDrag);
+
+    // Touch Listeners
+    simSidebar.addEventListener('touchstart', (e) => startDrag(e.touches[0].clientY, e.target), { passive: false });
+    window.addEventListener('touchmove', (e) => moveDrag(e.touches[0].clientY, e), { passive: false });
+    window.addEventListener('touchend', endDrag);
+
+    // Initialize
+    setTimeout(updateLabels, 100);
+
+    // Copy Prompt
+    const copyBtn = document.getElementById('copy-btn');
+    copyBtn.addEventListener('click', () => {
+        const collapsedOffset = ctrlCollapsedOffset.value;
+        const isFullMode = ctrlInteractMode.value === 'full';
+        const defaultH = ctrlDefaultHeight.value;
+        const expandedH = ctrlExpandedHeight.value;
+
+        const prompt = `Please update the mobile bottom sheet drawer implementation in \`app.js\` and \`styles.css\` with the following interaction tweaks:
+
+1. **Collapsed State Height**:
+   - Increase the base collapsed height by **+${collapsedOffset}% of window.innerHeight**.
+   - Update \`getSnapHeights()\` formula for \`collapsed\` to include this extra buffer so more context of the top list item is visible when minimized.
+
+2. **Full Sheet Draggability & Scroll Interception** (${isFullMode ? 'Enabled' : 'Header Only'}):
+   ${isFullMode ? `- Attach touch listeners to the entire \`sidebar\` container rather than just the \`header\`.
+   - Intercept touch events on the \`closure-list\`: if the sheet is not fully expanded, dragging on the list should expand/collapse the drawer instead of scrolling.
+   - If the sheet is fully expanded and the list is at \`scrollTop === 0\`, pulling down should minimize the bottom sheet rather than triggering a browser page refresh.` : `- Keep dragging restricted to the header element.`}
+
+3. **Snap Heights**:
+   - Ensure default snap is at **${defaultH}%** and expanded snap is at **${expandedH}%** of viewport height.`;
+
+        navigator.clipboard.writeText(prompt).then(() => {
+            copyBtn.classList.add('copied');
+            copyBtn.innerText = 'Prompt Copied!';
+            const toast = document.getElementById('toast');
+            toast.style.display = 'block';
+            setTimeout(() => {
+                toast.style.display = 'none';
+                copyBtn.classList.remove('copied');
+                copyBtn.innerText = 'Copy Implementation Prompt';
+            }, 3000);
+        });
+    });
+</script>
+</body>
+</html>
