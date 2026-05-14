@@ -5,8 +5,5 @@
   "scripts": {
     "build": "echo \"const CONFIG = { GOOGLE_MAPS_API_KEY: '$GOOGLE_MAPS_API_KEY' };\" > config.js",
     "dev": "npx serve"
-  },
-  "dependencies": {
-    "@vercel/analytics": "^2.0.1"
   }
 }
