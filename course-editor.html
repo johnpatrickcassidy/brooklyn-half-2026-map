@@ -1,0 +1,244 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Dynamic Race Course Editor</title>
+    <style>
+        body {
+            margin: 0;
+            padding: 0;
+            font-family: 'Inter', sans-serif;
+            display: flex;
+            height: 100vh;
+            background: #18181b;
+            color: #f4f4f5;
+        }
+        #map-container {
+            flex: 1;
+            height: 100%;
+            position: relative;
+        }
+        #map {
+            width: 100%;
+            height: 100%;
+        }
+        #panel {
+            width: 400px;
+            background: #09090b;
+            border-left: 1px solid #27272a;
+            display: flex;
+            flex-direction: column;
+            padding: 20px;
+            box-sizing: border-box;
+        }
+        h1 {
+            font-size: 1.5rem;
+            margin-top: 0;
+            color: #fdb813;
+        }
+        p {
+            font-size: 0.9rem;
+            color: #a1a1aa;
+            line-height: 1.4;
+        }
+        .instruction-step {
+            margin-bottom: 15px;
+            font-size: 0.85rem;
+        }
+        .instruction-step strong {
+            color: #ffffff;
+        }
+        #coords-output {
+            flex: 1;
+            background: #18181b;
+            border: 1px solid #27272a;
+            border-radius: 4px;
+            padding: 10px;
+            font-family: monospace;
+            font-size: 0.75rem;
+            color: #34d399;
+            overflow-y: auto;
+            white-space: pre-wrap;
+            margin-bottom: 20px;
+        }
+        button {
+            background: #fdb813;
+            color: #09090b;
+            border: none;
+            padding: 12px 20px;
+            font-size: 0.9rem;
+            font-weight: bold;
+            border-radius: 4px;
+            cursor: pointer;
+            transition: background 0.2s;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 8px;
+        }
+        button:hover {
+            background: #e0a310;
+        }
+        button:active {
+            background: #c7900e;
+        }
+        .toast {
+            position: absolute;
+            bottom: 20px;
+            left: 50%;
+            transform: translateX(-50%);
+            background: #10b981;
+            color: white;
+            padding: 10px 20px;
+            border-radius: 4px;
+            font-weight: 500;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.3);
+            display: none;
+            z-index: 1000;
+        }
+    </style>
+</head>
+<body>
+    <div id="map-container">
+        <div id="map"></div>
+        <div id="toast" class="toast">Copied to clipboard!</div>
+    </div>
+    <div id="panel">
+        <h1>Course Editor</h1>
+        <p>Adjust the entire race course route dynamically. This editor loads coordinates directly from the codebase.</p>
+        
+        <div class="instruction-step">
+            <strong>1. Drag Vertices:</strong> Drag solid white dots to move existing points.
+        </div>
+        <div class="instruction-step">
+            <strong>2. Add Points:</strong> Drag semi-transparent ghost dots to add new points.
+        </div>
+        <div class="instruction-step">
+            <strong>3. Save:</strong> Once you are happy with the route, click the button below to copy the prompt and new coordinates.
+        </div>
+
+        <div style="font-size: 0.8rem; color: #a1a1aa; margin-bottom: 5px; font-weight: bold;">Current Coordinates (JSON):</div>
+        <div id="coords-output">Loading coordinates...</div>
+        
+        <button id="copy-btn">
+            <span>📋</span> Copy as Prompt for Jetski
+        </button>
+    </div>
+
+    <!-- Configuration Secrets -->
+    <script src="config.js"></script>
+    <!-- Data containing raceCourseRoute -->
+    <script src="data.js"></script>
+    <!-- Google Maps JS API Bootstrap Loader -->
+    <script>
+        (g=>{var h,a,k,p="The Google Maps JavaScript API",c="google",l="importLibrary",q="__ib__",m=document,b=window;b=b[c]||(b[c]={});var d=b.maps||(b.maps={}),r=new Set,e=new URLSearchParams,u=()=>h||(h=new Promise(async(f,n)=>{await (a=m.createElement("script"));e.set("libraries",[...r]+"");for(k in g)e.set(k.replace(/[A-Z]/g,t=>"_"+t[0].toLowerCase()),g[k]);e.set("callback",c+".maps."+q);a.src=`https://maps.${c}apis.com/maps/api/js?`+e;d[q]=f;a.onerror=()=>h=n(Error(p+" could not load."));a.nonce=m.querySelector("script[nonce]")?.nonce||"";m.head.append(a)}));d[l]?console.warn(p+" only loads once. Ignoring:",g):d[l]=(f,...n)=>r.add(f)&&u().then(()=>d[l](f,...n))})({
+            key: CONFIG.GOOGLE_MAPS_API_KEY,
+            v: "weekly",
+        });
+    </script>
+
+    <script>
+        document.addEventListener('DOMContentLoaded', async () => {
+            // Verify that raceCourseRoute is loaded from data.js
+            if (typeof raceCourseRoute === 'undefined') {
+                document.getElementById('coords-output').textContent = 'Error: raceCourseRoute not found in data.js!';
+                document.getElementById('coords-output').style.color = '#ef4444';
+                return;
+            }
+
+            await google.maps.importLibrary("maps");
+            const { Map: GoogleMap, Polyline, LatLng } = google.maps;
+
+            const map = new GoogleMap(document.getElementById('map'), {
+                center: { lat: 40.63806, lng: -73.96357 },
+                zoom: 13,
+                styles: [
+                    { elementType: "geometry", stylers: [{ color: "#242f3e" }] },
+                    { elementType: "labels.text.stroke", stylers: [{ color: "#242f3e" }] },
+                    { elementType: "labels.text.fill", stylers: [{ color: "#746855" }] },
+                    { featureType: "administrative.locality", elementType: "labels.text.fill", stylers: [{ color: "#d59563" }] },
+                    { featureType: "poi", elementType: "labels.text.fill", stylers: [{ color: "#d59563" }] },
+                    { featureType: "poi.park", elementType: "geometry", stylers: [{ color: "#263c3f" }] },
+                    { featureType: "poi.park", elementType: "labels.text.fill", stylers: [{ color: "#6b9a76" }] },
+                    { featureType: "road", elementType: "geometry", stylers: [{ color: "#38414e" }] },
+                    { featureType: "road", elementType: "geometry.stroke", stylers: [{ color: "#212a37" }] },
+                    { featureType: "road", elementType: "labels.text.fill", stylers: [{ color: "#9ca5b3" }] },
+                    { featureType: "road.highway", elementType: "geometry", stylers: [{ color: "#746855" }] },
+                    { featureType: "road.highway", elementType: "geometry.stroke", stylers: [{ color: "#1f2835" }] },
+                    { featureType: "road.highway", elementType: "labels.text.fill", stylers: [{ color: "#f3d19c" }] },
+                    { featureType: "water", elementType: "geometry", stylers: [{ color: "#17263c" }] },
+                    { featureType: "water", elementType: "labels.text.fill", stylers: [{ color: "#515c6d" }] },
+                    { featureType: "water", elementType: "labels.text.stroke", stylers: [{ color: "#17263c" }] }
+                ],
+                mapTypeControl: false,
+                streetViewControl: false
+            });
+
+            // Convert raceCourseRoute to LatLng objects
+            const path = raceCourseRoute.map(coords => new LatLng(coords[0], coords[1]));
+
+            // Create editable polyline
+            const polyline = new Polyline({
+                path: path,
+                editable: true,
+                strokeColor: '#ffffff',
+                strokeOpacity: 1.0,
+                strokeWeight: 4,
+                map: map
+            });
+
+            const outputDiv = document.getElementById('coords-output');
+
+            function updateOutput() {
+                const currentPath = polyline.getPath();
+                const coords = [];
+                for (let i = 0; i < currentPath.getLength(); i++) {
+                    const latLng = currentPath.getAt(i);
+                    coords.push([
+                        parseFloat(latLng.lat().toFixed(6)),
+                        parseFloat(latLng.lng().toFixed(6))
+                    ]);
+                }
+                outputDiv.textContent = JSON.stringify(coords, null, 2);
+            }
+
+            // Update output initially
+            updateOutput();
+
+            // Listen for path edits
+            google.maps.event.addListener(polyline.getPath(), 'insert_at', updateOutput);
+            google.maps.event.addListener(polyline.getPath(), 'remove_at', updateOutput);
+            google.maps.event.addListener(polyline.getPath(), 'set_at', updateOutput);
+
+            // Copy button logic
+            const copyBtn = document.getElementById('copy-btn');
+            const toast = document.getElementById('toast');
+
+            copyBtn.addEventListener('click', () => {
+                const currentPath = polyline.getPath();
+                const coords = [];
+                for (let i = 0; i < currentPath.getLength(); i++) {
+                    const latLng = currentPath.getAt(i);
+                    coords.push([
+                        parseFloat(latLng.lat().toFixed(6)),
+                        parseFloat(latLng.lng().toFixed(6))
+                    ]);
+                }
+
+                const promptText = `Here are the updated coordinates for the race course route (raceCourseRoute in data.js):\n\n\`\`\`json\n${JSON.stringify(coords, null, 2)}\n\`\`\`\n\nPlease update the raceCourseRoute in data.js with these coordinates. Also, please extract the corresponding segment from Park Circle to Surf Ave (make sure it matches your Ocean Parkway segment) and update the Ocean Parkway closure coordinates (id 8 in data.js) to match exactly.`;
+
+                navigator.clipboard.writeText(promptText).then(() => {
+                    toast.style.display = 'block';
+                    setTimeout(() => {
+                        toast.style.display = 'none';
+                    }, 2000);
+                }).catch(err => {
+                    console.error('Failed to copy: ', err);
+                    alert('Failed to copy to clipboard. You can copy the coordinates manually from the text box.');
+                });
+            });
+        });
+    </script>
+</body>
+</html>

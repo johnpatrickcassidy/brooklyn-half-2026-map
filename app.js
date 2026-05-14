@@ -157,12 +157,23 @@ document.addEventListener('DOMContentLoaded', async () => {
     closuresData.forEach(item => {
         const itemPolylines = [];
         
-        if (Array.isArray(item.latlngs[0][0])) {
-            item.latlngs.forEach(subPath => {
-                fetchAndPlotRoute(item, subPath, itemPolylines);
-            });
+        if (item.id === 8) {
+            // Force straight fallback for Ocean Parkway to avoid OSRM veering to Coney Island Ave
+            if (Array.isArray(item.latlngs[0][0])) {
+                item.latlngs.forEach(subPath => {
+                    plotStraightFallback(item, subPath, itemPolylines);
+                });
+            } else {
+                plotStraightFallback(item, item.latlngs, itemPolylines);
+            }
         } else {
-            fetchAndPlotRoute(item, item.latlngs, itemPolylines);
+            if (Array.isArray(item.latlngs[0][0])) {
+                item.latlngs.forEach(subPath => {
+                    fetchAndPlotRoute(item, subPath, itemPolylines);
+                });
+            } else {
+                fetchAndPlotRoute(item, item.latlngs, itemPolylines);
+            }
         }
         
         const popupContent = `
@@ -406,37 +417,12 @@ document.addEventListener('DOMContentLoaded', async () => {
     let swarmRunners = [];
     let isSwarmInitialized = false;
 
-    const fallbackRoute = [
-        [40.6712, -73.9628], [40.6680, -73.9620], [40.6645, -73.9615],
-        [40.6630, -73.9610],
-        [40.6680, -73.9650], [40.6728, -73.9701],
-        [40.6680, -73.9650], [40.6630, -73.9610],
-        [40.6590, -73.9612], [40.6560, -73.9615], [40.6545, -73.9662], [40.6530, -73.9710],
-        [40.6560, -73.9670], [40.6600, -73.9650], [40.6650, -73.9655], [40.6700, -73.9680],
-        [40.6660, -73.9730], [40.6600, -73.9750], [40.6550, -73.9740], [40.6530, -73.9710],
-        [40.6400, -73.9700], [40.6200, -73.9690], [40.6000, -73.9680], [40.5840, -73.9670], [40.5760, -73.9700],
-        [40.5755, -73.9740], [40.5750, -73.9780], [40.5730, -73.9775], [40.5725, -73.9800]
-    ];
-
     const overlayLayer = new RunnerCanvasOverlay();
     overlayLayer.setMap(map);
 
     async function mountRunnerSwarm() {
-        try {
-            const wpStr = "-73.9628,40.6712;-73.9615,40.6645;-73.9610,40.6630;-73.9701,40.6728;-73.9610,40.6630;-73.9615,40.6560;-73.9710,40.6530;-73.9650,40.6620;-73.9680,40.6700;-73.9750,40.6600;-73.9710,40.6530;-73.9670,40.5840;-73.9700,40.5760;-73.9780,40.5750;-73.9775,40.5730;-73.9800,40.5725";
-            const osrmUrl = `https://router.project-osrm.org/route/v1/cycling/${wpStr}?overview=full&geometries=geojson`;
-            
-            const routeRes = await fetch(osrmUrl);
-            const routeData = await routeRes.json();
-            
-            if (routeData.routes && routeData.routes[0]) {
-                courseCoords = routeData.routes[0].geometry.coordinates.map(c => [c[1], c[0]]);
-            } else {
-                courseCoords = fallbackRoute;
-            }
-        } catch (e) {
-            courseCoords = fallbackRoute;
-        }
+        // Bypass OSRM fetch as it is unreliable and erroneously routes Ocean Parkway down Coney Island Ave
+        courseCoords = raceCourseRoute;
 
         const metrics = computeCourseMetrics(courseCoords);
         courseCumDist = metrics.cumDist;
