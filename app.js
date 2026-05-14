@@ -57,14 +57,16 @@ document.addEventListener('DOMContentLoaded', async () => {
         }
     }
 
-    // Persistent Onboarding Display Logic (TEMPORARILY BYPASSED FOR LOCAL TESTING: Always show)
-    const onboardingOverlay = document.getElementById('onboarding-overlay');
-    // Defer initialization slightly to allow full page rendering
-    setTimeout(() => {
-        if (typeof initOnboarding === 'function') {
-            initOnboarding();
-        }
-    }, 200);
+    // Persistent Onboarding Display Logic
+    const onboardingCompleted = localStorage.getItem('onboarding-completed') === 'true';
+    if (!onboardingCompleted) {
+        // Defer initialization slightly to allow full page rendering
+        setTimeout(() => {
+            if (typeof initOnboarding === 'function') {
+                initOnboarding();
+            }
+        }, 200);
+    }
 
     const lightGrayStyle = [
         { elementType: "geometry", stylers: [{ color: "#f5f5f5" }] },

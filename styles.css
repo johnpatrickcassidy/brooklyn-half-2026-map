@@ -521,6 +521,10 @@ body, html {
     font-family: 'Inter', -apple-system, sans-serif;
 }
 
+.onboarding-done .onboarding-overlay {
+    display: none;
+}
+
 .onboarding-overlay.fade-out {
     opacity: 0;
     visibility: hidden;
