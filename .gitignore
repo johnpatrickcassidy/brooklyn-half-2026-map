@@ -17,6 +17,8 @@ Thumbs.db
 # Local configuration secrets
 config.js
 
+# Dependencies
+node_modules/
 
 # Experiments
 experiments/
