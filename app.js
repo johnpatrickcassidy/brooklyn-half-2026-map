@@ -513,6 +513,25 @@ document.addEventListener('DOMContentLoaded', async () => {
             }
         }
 
+        // Sort runners by speed descending (fastest first)
+        swarmRunners.sort((a, b) => b.speed - a.speed);
+
+        const numRunners = swarmRunners.length;
+        const quarter = Math.floor(numRunners / 4);
+        for (let i = 0; i < numRunners; i++) {
+            let waveDelay = 0;
+            if (i < quarter) {
+                waveDelay = 0; // Wave 1: 7:00 AM
+            } else if (i < 2 * quarter) {
+                waveDelay = 30; // Wave 2: 7:30 AM
+            } else if (i < 3 * quarter) {
+                waveDelay = 60; // Wave 3: 8:00 AM
+            } else {
+                waveDelay = 90; // Wave 4: 8:30 AM
+            }
+            swarmRunners[i].waveDelay = waveDelay;
+        }
+
         isSwarmInitialized = true;
         requestAnimationFrame(renderLoop);
     }
@@ -560,40 +579,44 @@ document.addEventListener('DOMContentLoaded', async () => {
 
                 for (let i = 0; i < swarmRunners.length; i++) {
                     const r = swarmRunners[i];
-                    const dist = r.speed * raceElapsedMins;
+                    const runnerElapsedMins = raceElapsedMins - r.waveDelay;
 
-                    if (dist > 0 && dist <= 13.1) {
-                        const state = getRouteStateAtDistance(dist, courseCoords, courseCumDist);
-                        const compositeScatter = (r.scatterX + laneBias) * scatterFactor;
-                        const lat = state.pt[0] + state.normal[0] * compositeScatter;
-                        const lng = state.pt[1] + state.normal[1] * compositeScatter;
+                    if (runnerElapsedMins >= 0) {
+                        const dist = r.speed * runnerElapsedMins;
 
-                        const layerPt = projection.fromLatLngToDivPixel(new LatLng(lat, lng));
-                        const pixelX = layerPt.x - topLeft.x;
-                        const pixelY = layerPt.y - topLeft.y;
+                        if (dist > 0 && dist <= 13.1) {
+                            const state = getRouteStateAtDistance(dist, courseCoords, courseCumDist);
+                            const compositeScatter = (r.scatterX + laneBias) * scatterFactor;
+                            const lat = state.pt[0] + state.normal[0] * compositeScatter;
+                            const lng = state.pt[1] + state.normal[1] * compositeScatter;
 
-                        if (pixelX >= -10 && pixelX <= canvas.width + 10 &&
-                            pixelY >= -10 && pixelY <= canvas.height + 10) {
-                            
-                            const fLat = lat + state.forward[0] * 0.0002;
-                            const fLng = lng + state.forward[1] * 0.0002;
-                            const fPixel = projection.fromLatLngToDivPixel(new LatLng(fLat, fLng));
-                            let pdx = fPixel.x - layerPt.x;
-                            let pdy = fPixel.y - layerPt.y;
-                            const plen = Math.sqrt(pdx*pdx + pdy*pdy);
-                            if (plen > 0) { pdx /= plen; pdy /= plen; }
+                            const layerPt = projection.fromLatLngToDivPixel(new LatLng(lat, lng));
+                            const pixelX = layerPt.x - topLeft.x;
+                            const pixelY = layerPt.y - topLeft.y;
 
-                            ctx.beginPath();
-                            ctx.strokeStyle = 'rgba(253, 184, 19, 0.4)';
-                            ctx.lineWidth = activeNodeSize;
-                            ctx.moveTo(pixelX, pixelY);
-                            ctx.lineTo(pixelX - pdx * tailLength, pixelY - pdy * tailLength);
-                            ctx.stroke();
+                            if (pixelX >= -10 && pixelX <= canvas.width + 10 &&
+                                pixelY >= -10 && pixelY <= canvas.height + 10) {
+                                
+                                const fLat = lat + state.forward[0] * 0.0002;
+                                const fLng = lng + state.forward[1] * 0.0002;
+                                const fPixel = projection.fromLatLngToDivPixel(new LatLng(fLat, fLng));
+                                let pdx = fPixel.x - layerPt.x;
+                                let pdy = fPixel.y - layerPt.y;
+                                const plen = Math.sqrt(pdx*pdx + pdy*pdy);
+                                if (plen > 0) { pdx /= plen; pdy /= plen; }
 
-                            ctx.beginPath();
-                            ctx.fillStyle = '#FDB813';
-                            ctx.arc(pixelX, pixelY, rRadius, 0, Math.PI * 2);
-                            ctx.fill();
+                                ctx.beginPath();
+                                ctx.strokeStyle = 'rgba(253, 184, 19, 0.4)';
+                                ctx.lineWidth = activeNodeSize;
+                                ctx.moveTo(pixelX, pixelY);
+                                ctx.lineTo(pixelX - pdx * tailLength, pixelY - pdy * tailLength);
+                                ctx.stroke();
+
+                                ctx.beginPath();
+                                ctx.fillStyle = '#FDB813';
+                                ctx.arc(pixelX, pixelY, rRadius, 0, Math.PI * 2);
+                                ctx.fill();
+                            }
                         }
                     }
                 }
