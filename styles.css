@@ -1,6 +1,22 @@
 :root {
     --safe-area-bottom: env(safe-area-inset-bottom, 0px);
     --sheet-height: 25vh;
+    --sky-gradient: linear-gradient(
+        to right,
+        #0b1026 0%,
+        #1a1f4a 26.6%,
+        #2a3270 36.6%,
+        #c97f5e 40%,
+        #f4b860 45%,
+        #87b8e8 50%,
+        #5fa6d9 66.7%,
+        #6fb3dd 80%,
+        #e8a55a 93.3%,
+        #c8743a 100%
+    );
+    --sky-color-top: #87b8e8;
+    --sun-glow: 0.6;
+    --sky-overlay-opacity: 0.05;
 }
 
 * {
@@ -342,8 +358,37 @@ body, html {
 
 #time-slider {
     width: 100%;
-    accent-color: #FDB813;
     cursor: pointer;
+    -webkit-appearance: none;
+    appearance: none;
+    background: transparent;
+    height: 22px;
+    margin: 0;
+    padding: 0;
+}
+
+/* Sky-gradient track — Chrome/Safari */
+#time-slider::-webkit-slider-runnable-track {
+    height: 12px;
+    border-radius: 6px;
+    background: var(--sky-gradient);
+    border: 1px solid rgba(0, 0, 0, 0.3);
+}
+
+/* Sky-gradient track — Firefox */
+#time-slider::-moz-range-track {
+    height: 12px;
+    border-radius: 6px;
+    background: var(--sky-gradient);
+    border: 1px solid rgba(0, 0, 0, 0.3);
+}
+
+/* Fallback if linear-gradient unsupported */
+@supports not (background: linear-gradient(to right, #000, #fff)) {
+    #time-slider {
+        accent-color: #FDB813;
+        height: auto;
+    }
 }
 
 .solid-trace {
