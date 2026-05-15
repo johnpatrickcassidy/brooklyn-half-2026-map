@@ -227,6 +227,10 @@ document.addEventListener('DOMContentLoaded', async () => {
         listContainer.appendChild(li);
     });
 
+    // ===== Sundial: sky palette and interpolation =====
+    const RACE_GUN_MIN = 420; // 7:00 AM, when the first wave goes off
+    const reducedMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+
     const SKY_PALETTE = [
         [0,   '#0b1026'], // 12:00 AM midnight
         [240, '#1a1f4a'], // 4:00 AM deep night
@@ -467,7 +471,6 @@ document.addEventListener('DOMContentLoaded', async () => {
     // ===== Auto-play loop =====
     const playBtn = document.getElementById('time-play');
     const PLAY_DURATION_MS = 60000; // 60s for full midnight -> 3 PM sweep
-    const reducedMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
 
     let rafId = null;
     let lastFrameTs = null;

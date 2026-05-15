@@ -536,6 +536,22 @@ body, html {
     animation: glow 3s ease-in-out infinite;
 }
 
+/* Map sky overlay — tints the upper portion of the map by time of day */
+#sky-overlay {
+    position: absolute;
+    inset: 0;
+    z-index: 1; /* above map tiles, below all UI overlays (legend, popups, etc. all use z-index >= 10) */
+    pointer-events: none;
+    background: linear-gradient(to bottom, var(--sky-color-top) 0%, transparent 60%);
+    opacity: var(--sky-overlay-opacity);
+    mix-blend-mode: multiply;
+    transition: opacity 200ms ease-out;
+}
+
+#sky-overlay.is-daylight {
+    mix-blend-mode: screen;
+}
+
 /* ==========================================
    Floating Persistent Map Legend Card
    ========================================== */
