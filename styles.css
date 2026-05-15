@@ -356,6 +356,11 @@ body, html {
     color: #FDB813; /* Yellow accent */
 }
 
+.slider-track-wrap {
+    position: relative;
+    padding: 14px 0; /* room above for tick labels (added in Task 5) */
+}
+
 #time-slider {
     width: 100%;
     cursor: pointer;
