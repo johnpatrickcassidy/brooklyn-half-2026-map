@@ -319,20 +319,18 @@ document.addEventListener('DOMContentLoaded', async () => {
         const skyColor = interpolateSkyColor(currentMin);
         root.style.setProperty('--sky-color-top', skyColor);
 
-        // Opacity by phase: peaks at dawn (360-450) and late afternoon (810-900),
-        // dips at midday (~0.05), held at ~0.12 at night so dark sky reads.
+        // Opacity by phase: deepest at midnight (0.665), drops through pre-dawn,
+        // midday floor (~0.05), rises again into late afternoon.
         // Reduced-motion users get a flat opacity to avoid pulsing during auto-play.
         let overlayOpacity;
         if (reducedMotion) {
             overlayOpacity = 0.08;
         } else if (currentMin < 300) {
-            overlayOpacity = 0.12; // night
+            overlayOpacity = 0.665;
         } else if (currentMin < 360) {
-            // pre-dawn ramp 0.12 -> 0.18
-            overlayOpacity = 0.12 + (currentMin - 300) / 60 * 0.06;
+            overlayOpacity = 0.665 + (currentMin - 300) / 60 * -0.485;
         } else if (currentMin < 450) {
-            // dawn peak 0.18 -> tapering to 0.10 by 7:30 AM
-            overlayOpacity = 0.18 - (currentMin - 360) / 90 * 0.08;
+            overlayOpacity = 0.180 - (currentMin - 360) / 90 * 0.080;
         } else if (currentMin < 600) {
             // morning 0.10 -> 0.05
             overlayOpacity = 0.10 - (currentMin - 450) / 150 * 0.05;
@@ -350,6 +348,15 @@ document.addEventListener('DOMContentLoaded', async () => {
         if (overlay) {
             const isDaylight = currentMin >= 390 && currentMin <= 810;
             overlay.classList.toggle('is-daylight', isDaylight);
+        }
+
+        // Night vignette: extra darkening for the dead-of-night hours
+        const vignette = document.getElementById('night-vignette');
+        if (vignette) {
+            let v = 0;
+            if (currentMin < 300) v = 0.21;
+            else if (currentMin < 420) v = 0.21 * (1 - (currentMin - 300) / 120);
+            vignette.style.opacity = v.toFixed(3);
         }
     }
 
