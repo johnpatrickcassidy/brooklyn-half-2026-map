@@ -251,11 +251,6 @@ body, html {
 
 /* Mobile polish — hide tick labels under 480px */
 @media (max-width: 480px) {
-    .slider-container {
-        margin-top: 10px;
-        padding: 8px;
-    }
-
     .time-tick-label {
         display: none;
     }
