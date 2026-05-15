@@ -367,6 +367,48 @@ document.addEventListener('DOMContentLoaded', async () => {
         updateFilter(parseInt(slider.value, 10));
     }, 6000);
 
+    // ===== Milestone ticks =====
+    function deriveMilestones() {
+        const validEnds = closuresData
+            .map(c => c.endMin)
+            .filter(m => Number.isFinite(m));
+        const firstReopen = validEnds.length ? Math.min(...validEnds) : 600;
+        const allClear = validEnds.length ? Math.max(...validEnds) : 750;
+        return [
+            { id: 'gun',     value: RACE_GUN_MIN, label: 'GUN' },
+            { id: 'reopen',  value: firstReopen,  label: 'REOPEN' },
+            { id: 'allclear',value: allClear,     label: 'ALL CLEAR' },
+        ];
+    }
+
+    function renderMilestoneTicks() {
+        const wrap = document.querySelector('.slider-track-wrap');
+        if (!wrap) return;
+        const sliderMin = parseInt(slider.min, 10);
+        const sliderMax = parseInt(slider.max, 10);
+        const range = sliderMax - sliderMin;
+
+        deriveMilestones().forEach(ms => {
+            const pct = ((ms.value - sliderMin) / range) * 100;
+
+            const tick = document.createElement('div');
+            tick.className = 'time-tick';
+            tick.dataset.milestone = ms.id;
+            tick.dataset.value = String(ms.value);
+            tick.style.left = `${pct}%`;
+
+            const label = document.createElement('div');
+            label.className = 'time-tick-label';
+            label.dataset.milestone = ms.id;
+            label.style.left = `${pct}%`;
+            label.textContent = ms.label;
+
+            wrap.appendChild(tick);
+            wrap.appendChild(label);
+        });
+    }
+
+    renderMilestoneTicks();
 
     // ==========================================
     // Option 1: Route Particle Swarm Integration

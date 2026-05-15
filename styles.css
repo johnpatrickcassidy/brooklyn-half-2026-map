@@ -435,6 +435,34 @@ body, html {
     box-shadow: 0 0 8px rgba(159, 174, 193, var(--sun-glow));
 }
 
+.time-tick {
+    position: absolute;
+    top: 8px; /* matches .slider-track-wrap padding-top: 14px minus 6px to sit on track */
+    bottom: 8px;
+    width: 2px;
+    background: rgba(255, 255, 255, 0.85);
+    border-radius: 1px;
+    transform: translateX(-50%);
+    pointer-events: none;
+    transition: width 120ms ease-out, background-color 120ms ease-out;
+}
+
+.time-tick-label {
+    position: absolute;
+    top: 100%;
+    left: 0;
+    transform: translateX(-50%);
+    margin-top: 2px;
+    font-family: 'Inter', sans-serif;
+    font-size: 9px;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+    color: #a1a1aa;
+    white-space: nowrap;
+    pointer-events: none;
+    transition: color 120ms ease-out;
+}
+
 .solid-trace {
     pointer-events: none;
     stroke-dasharray: 2000 !important;
