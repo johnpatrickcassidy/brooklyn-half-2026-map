@@ -356,6 +356,37 @@ body, html {
     color: #FDB813; /* Yellow accent */
 }
 
+#time-play {
+    width: 22px;
+    height: 22px;
+    border-radius: 50%;
+    background: #FDB813;
+    color: #0a0a0c;
+    border: none;
+    cursor: pointer;
+    font-size: 10px;
+    line-height: 1;
+    padding: 0 0 0 1px; /* nudge play glyph optically center */
+    margin-right: 6px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    vertical-align: middle;
+    transition: background-color 120ms ease-out, transform 80ms ease-out;
+}
+
+#time-play:hover {
+    background: #ffc83a;
+}
+
+#time-play:active {
+    transform: scale(0.92);
+}
+
+#time-play.is-playing {
+    padding: 0; /* pause glyph centers natively */
+}
+
 .slider-track-wrap {
     position: relative;
     padding: 14px 0; /* room above for tick labels (added in Task 5) */

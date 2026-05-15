@@ -54,7 +54,10 @@
                 <h1>Brooklyn Half Closures</h1>
                 <p>Select a street to view closure details.</p>
                 <div class="slider-container">
-                    <label for="time-slider">Time: <span id="time-display">7:00 AM</span></label>
+                    <label for="time-slider">
+                        <button id="time-play" type="button" aria-label="Play race day">▶</button>
+                        Time: <span id="time-display">7:00 AM</span>
+                    </label>
                     <div class="slider-track-wrap">
                         <input type="range" id="time-slider" min="-1" max="900" value="420" step="1">
                     </div>
