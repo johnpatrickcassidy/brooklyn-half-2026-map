@@ -281,6 +281,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     function updateTimeOfDayVisuals(currentMin) {
         const root = document.documentElement;
         const wrap = document.querySelector('.slider-track-wrap');
+        const overlay = document.getElementById('sky-overlay');
 
         // Sun glow intensity by phase
         let glow;
@@ -309,6 +310,40 @@ document.addEventListener('DOMContentLoaded', async () => {
             const isActive = Math.abs(currentMin - tickValue) <= 5;
             el.classList.toggle('is-active', isActive);
         });
+
+        // Map sky overlay: color, opacity, blend mode
+        const skyColor = interpolateSkyColor(currentMin);
+        root.style.setProperty('--sky-color-top', skyColor);
+
+        // Opacity by phase: peaks at dawn (360-450) and late afternoon (810-900),
+        // dips at midday (~0.05), held at ~0.12 at night so dark sky reads.
+        let overlayOpacity;
+        if (currentMin < 300) {
+            overlayOpacity = 0.12; // night
+        } else if (currentMin < 360) {
+            // pre-dawn ramp 0.12 -> 0.18
+            overlayOpacity = 0.12 + (currentMin - 300) / 60 * 0.06;
+        } else if (currentMin < 450) {
+            // dawn peak 0.18 -> tapering to 0.10 by 7:30 AM
+            overlayOpacity = 0.18 - (currentMin - 360) / 90 * 0.08;
+        } else if (currentMin < 600) {
+            // morning 0.10 -> 0.05
+            overlayOpacity = 0.10 - (currentMin - 450) / 150 * 0.05;
+        } else if (currentMin < 810) {
+            overlayOpacity = 0.05; // midday floor
+        } else if (currentMin < 900) {
+            // late-afternoon ramp 0.05 -> 0.18
+            overlayOpacity = 0.05 + (currentMin - 810) / 90 * 0.13;
+        } else {
+            overlayOpacity = 0.18;
+        }
+        root.style.setProperty('--sky-overlay-opacity', overlayOpacity.toFixed(3));
+
+        // Blend mode: screen for daylight (390-810), multiply otherwise
+        if (overlay) {
+            const isDaylight = currentMin >= 390 && currentMin <= 810;
+            overlay.classList.toggle('is-daylight', isDaylight);
+        }
     }
 
     // Time Slider Logic
