@@ -317,8 +317,11 @@ document.addEventListener('DOMContentLoaded', async () => {
 
         // Opacity by phase: peaks at dawn (360-450) and late afternoon (810-900),
         // dips at midday (~0.05), held at ~0.12 at night so dark sky reads.
+        // Reduced-motion users get a flat opacity to avoid pulsing during auto-play.
         let overlayOpacity;
-        if (currentMin < 300) {
+        if (reducedMotion) {
+            overlayOpacity = 0.08;
+        } else if (currentMin < 300) {
             overlayOpacity = 0.12; // night
         } else if (currentMin < 360) {
             // pre-dawn ramp 0.12 -> 0.18
@@ -404,6 +407,10 @@ document.addEventListener('DOMContentLoaded', async () => {
 
     slider.addEventListener('input', (e) => {
         const currentMin = parseInt(e.target.value, 10);
+        // User scrub interrupts auto-play; synthetic events from rAF loop don't
+        if (e.isTrusted && isPlaying) {
+            stopPlay();
+        }
         updateFilter(currentMin);
         updateTimeOfDayVisuals(currentMin);
     });
@@ -456,6 +463,77 @@ document.addEventListener('DOMContentLoaded', async () => {
     }
 
     renderMilestoneTicks();
+
+    // ===== Auto-play loop =====
+    const playBtn = document.getElementById('time-play');
+    const PLAY_DURATION_MS = 60000; // 60s for full midnight -> 3 PM sweep
+    const reducedMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+
+    let rafId = null;
+    let lastFrameTs = null;
+    let isPlaying = false;
+
+    function setPlayingState(playing) {
+        isPlaying = playing;
+        if (!playBtn) return;
+        playBtn.textContent = playing ? '❚❚' : '▶';
+        playBtn.setAttribute('aria-label', playing ? 'Pause' : 'Play race day');
+        playBtn.classList.toggle('is-playing', playing);
+    }
+
+    function stopPlay() {
+        if (rafId !== null) cancelAnimationFrame(rafId);
+        rafId = null;
+        lastFrameTs = null;
+        setPlayingState(false);
+    }
+
+    function startPlay() {
+        const sliderMin = parseInt(slider.min, 10);
+        const sliderMax = parseInt(slider.max, 10);
+        const range = sliderMax - sliderMin;
+        const minsPerMs = range / PLAY_DURATION_MS;
+
+        // If at the end, reset to start
+        if (parseInt(slider.value, 10) >= sliderMax) {
+            slider.value = String(sliderMin);
+            slider.dispatchEvent(new Event('input')); // synthetic — not isTrusted
+        }
+
+        setPlayingState(true);
+        lastFrameTs = null;
+
+        function frame(ts) {
+            if (!isPlaying) return;
+            if (lastFrameTs === null) lastFrameTs = ts;
+            const dt = ts - lastFrameTs;
+            lastFrameTs = ts;
+
+            const next = parseInt(slider.value, 10) + minsPerMs * dt;
+            if (next >= sliderMax) {
+                slider.value = String(sliderMax);
+                slider.dispatchEvent(new Event('input'));
+                stopPlay();
+                return;
+            }
+            slider.value = String(Math.round(next));
+            slider.dispatchEvent(new Event('input'));
+            rafId = requestAnimationFrame(frame);
+        }
+        rafId = requestAnimationFrame(frame);
+    }
+
+    function togglePlay() {
+        if (isPlaying) {
+            stopPlay();
+        } else {
+            startPlay();
+        }
+    }
+
+    if (playBtn) {
+        playBtn.addEventListener('click', togglePlay);
+    }
 
     // ==========================================
     // Option 1: Route Particle Swarm Integration
