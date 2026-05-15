@@ -16,9 +16,13 @@ Thumbs.db
 
 # Local configuration secrets
 config.js
+.env
 
 # Dependencies
 node_modules/
 
 # Experiments
 experiments/
+
+# Superpowers brainstorming session files
+.superpowers/
