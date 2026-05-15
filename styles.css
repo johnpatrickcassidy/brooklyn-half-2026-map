@@ -249,6 +249,22 @@ body, html {
     }
 }
 
+/* Mobile polish — hide tick labels under 480px */
+@media (max-width: 480px) {
+    .slider-container {
+        margin-top: 10px;
+        padding: 8px;
+    }
+
+    .time-tick-label {
+        display: none;
+    }
+
+    .slider-track-wrap {
+        padding: 8px 0; /* less vertical room needed without labels */
+    }
+}
+
 /* Custom Float Overlay Container (Option 2: Frosted Glass HUD) */
 .custom-street-overlay-container {
     position: absolute;
