@@ -102,7 +102,7 @@ Each tick is a 2px-wide white vertical line extending 3px above and below the tr
 
 Single `<div id="sky-overlay">` inside `#map-container`:
 
-- `position: absolute; inset: 0; z-index: 5; pointer-events: none;`
+- `position: absolute; inset: 0; z-index: 1; pointer-events: none;` — sits above the Google Maps tile layer but below all existing UI overlays (legend, custom street overlay, popups, onboarding all use z-index ≥ 10).
 - `background: linear-gradient(to bottom, var(--sky-color-top) 0%, transparent 60%);`
 - `mix-blend-mode: multiply` for warm tones (currentMin < 390 or > 810); `mix-blend-mode: screen` for daylight tones (390–810). JS toggles a class to swap.
 - Opacity capped at 0.18, scaled by time of day:
