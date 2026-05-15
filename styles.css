@@ -425,6 +425,16 @@ body, html {
     cursor: grab;
 }
 
+/* Pre-dawn moon swap — cool palette */
+.slider-track-wrap.is-night #time-slider::-webkit-slider-thumb {
+    background: radial-gradient(circle at 30% 30%, #e8eef5, #9faec1 60%, #5a6478);
+    box-shadow: 0 0 8px rgba(159, 174, 193, var(--sun-glow));
+}
+.slider-track-wrap.is-night #time-slider::-moz-range-thumb {
+    background: radial-gradient(circle at 30% 30%, #e8eef5, #9faec1 60%, #5a6478);
+    box-shadow: 0 0 8px rgba(159, 174, 193, var(--sun-glow));
+}
+
 .solid-trace {
     pointer-events: none;
     stroke-dasharray: 2000 !important;

@@ -227,6 +227,78 @@ document.addEventListener('DOMContentLoaded', async () => {
         listContainer.appendChild(li);
     });
 
+    const SKY_PALETTE = [
+        [0,   '#0b1026'], // 12:00 AM midnight
+        [240, '#1a1f4a'], // 4:00 AM deep night
+        [330, '#2a3270'], // 5:30 AM pre-dawn
+        [360, '#c97f5e'], // 6:00 AM dawn coral
+        [405, '#f4b860'], // 6:45 AM sunrise
+        [450, '#87b8e8'], // 7:30 AM morning sky
+        [600, '#5fa6d9'], // 10:00 AM mid-morning
+        [720, '#6fb3dd'], // 12:00 PM midday
+        [840, '#e8a55a'], // 2:00 PM afternoon warm
+        [900, '#c8743a'], // 3:00 PM late afternoon
+    ];
+
+    function hexToRgb(hex) {
+        const n = parseInt(hex.slice(1), 16);
+        return [(n >> 16) & 255, (n >> 8) & 255, n & 255];
+    }
+
+    function rgbToHex([r, g, b]) {
+        const h = (v) => Math.round(v).toString(16).padStart(2, '0');
+        return `#${h(r)}${h(g)}${h(b)}`;
+    }
+
+    function lerp(a, b, t) {
+        return a + (b - a) * t;
+    }
+
+    function interpolateSkyColor(currentMin) {
+        // Clamp to palette range
+        if (currentMin <= SKY_PALETTE[0][0]) return SKY_PALETTE[0][1];
+        if (currentMin >= SKY_PALETTE[SKY_PALETTE.length - 1][0]) {
+            return SKY_PALETTE[SKY_PALETTE.length - 1][1];
+        }
+        // Find bracketing stops
+        for (let i = 0; i < SKY_PALETTE.length - 1; i++) {
+            const [m1, c1] = SKY_PALETTE[i];
+            const [m2, c2] = SKY_PALETTE[i + 1];
+            if (currentMin >= m1 && currentMin <= m2) {
+                const t = (currentMin - m1) / (m2 - m1);
+                const rgb1 = hexToRgb(c1);
+                const rgb2 = hexToRgb(c2);
+                return rgbToHex([
+                    lerp(rgb1[0], rgb2[0], t),
+                    lerp(rgb1[1], rgb2[1], t),
+                    lerp(rgb1[2], rgb2[2], t),
+                ]);
+            }
+        }
+        return SKY_PALETTE[0][1]; // unreachable
+    }
+
+    function updateTimeOfDayVisuals(currentMin) {
+        const root = document.documentElement;
+        const wrap = document.querySelector('.slider-track-wrap');
+
+        // Sun glow intensity by phase
+        let glow;
+        if (currentMin < 300 || currentMin > 870) {
+            glow = 0.15; // night
+        } else if (currentMin < 420 || currentMin > 780) {
+            glow = 0.5;  // dawn / late afternoon
+        } else {
+            glow = 0.9;  // midday
+        }
+        root.style.setProperty('--sun-glow', glow.toFixed(2));
+
+        // Moon swap — cool-palette thumb before 5:00 AM
+        if (wrap) {
+            wrap.classList.toggle('is-night', currentMin < 300);
+        }
+    }
+
     // Time Slider Logic
     const slider = document.getElementById('time-slider');
     const timeDisplay = document.getElementById('time-display');
@@ -284,9 +356,13 @@ document.addEventListener('DOMContentLoaded', async () => {
     }
 
     slider.addEventListener('input', (e) => {
-        updateFilter(parseInt(e.target.value, 10));
+        const currentMin = parseInt(e.target.value, 10);
+        updateFilter(currentMin);
+        updateTimeOfDayVisuals(currentMin);
     });
 
+    // Initial paint — visuals can fire immediately, filter waits for map
+    updateTimeOfDayVisuals(parseInt(slider.value, 10));
     setTimeout(() => {
         updateFilter(parseInt(slider.value, 10));
     }, 6000);
