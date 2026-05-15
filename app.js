@@ -285,11 +285,11 @@ document.addEventListener('DOMContentLoaded', async () => {
         // Sun glow intensity by phase
         let glow;
         if (currentMin < 300 || currentMin > 870) {
-            glow = 0.15; // night
+            glow = 0.15;
         } else if (currentMin < 420 || currentMin > 780) {
-            glow = 0.5;  // dawn / late afternoon
+            glow = 0.5;
         } else {
-            glow = 0.9;  // midday
+            glow = 0.9;
         }
         root.style.setProperty('--sun-glow', glow.toFixed(2));
 
@@ -297,6 +297,18 @@ document.addEventListener('DOMContentLoaded', async () => {
         if (wrap) {
             wrap.classList.toggle('is-night', currentMin < 300);
         }
+
+        // Active milestone tick (within ±5 min of value)
+        document.querySelectorAll('.time-tick, .time-tick-label').forEach(el => {
+            const tickEl = el.classList.contains('time-tick') ? el : null;
+            const valueEl = tickEl || document.querySelector(
+                `.time-tick[data-milestone="${el.dataset.milestone}"]`
+            );
+            if (!valueEl) return;
+            const tickValue = parseInt(valueEl.dataset.value, 10);
+            const isActive = Math.abs(currentMin - tickValue) <= 5;
+            el.classList.toggle('is-active', isActive);
+        });
     }
 
     // Time Slider Logic

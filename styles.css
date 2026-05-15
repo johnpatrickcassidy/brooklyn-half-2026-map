@@ -463,6 +463,16 @@ body, html {
     transition: color 120ms ease-out;
 }
 
+.time-tick.is-active {
+    width: 3px;
+    background: #FDB813;
+    box-shadow: 0 0 6px rgba(253, 184, 19, 0.8);
+}
+
+.time-tick-label.is-active {
+    color: #FDB813;
+}
+
 .solid-trace {
     pointer-events: none;
     stroke-dasharray: 2000 !important;
