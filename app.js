@@ -299,11 +299,13 @@ document.addEventListener('DOMContentLoaded', async () => {
         root.style.setProperty('--sun-glow', glow.toFixed(2));
 
         // Moon swap — cool-palette thumb before 5:00 AM
+        const isNight = currentMin < 300;
         if (wrap) {
-            wrap.classList.toggle('is-night', currentMin < 300);
+            wrap.classList.toggle('is-night', isNight);
         }
+        morphIcon(isNight);
 
-        // Active milestone tick (within ±5 min of value)
+        // Active milestone tick (within ±15 min of value)
         document.querySelectorAll('.time-tick, .time-tick-label').forEach(el => {
             const tickEl = el.classList.contains('time-tick') ? el : null;
             const valueEl = tickEl || document.querySelector(
@@ -311,7 +313,7 @@ document.addEventListener('DOMContentLoaded', async () => {
             );
             if (!valueEl) return;
             const tickValue = parseInt(valueEl.dataset.value, 10);
-            const isActive = Math.abs(currentMin - tickValue) <= 5;
+            const isActive = Math.abs(currentMin - tickValue) <= 15;
             el.classList.toggle('is-active', isActive);
         });
 
@@ -363,22 +365,101 @@ document.addEventListener('DOMContentLoaded', async () => {
     // Time Slider Logic
     const slider = document.getElementById('time-slider');
     const timeDisplay = document.getElementById('time-display');
+    const thumbIcon = document.getElementById('thumb-icon');
+    const thumbIconBite = thumbIcon ? thumbIcon.querySelector('.bite') : null;
+    const thumbIconDisc = thumbIcon ? thumbIcon.querySelector('.disc') : null;
+
+    /**
+     * Position the morphing sun/moon SVG overlay so it tracks the slider thumb's
+     * center. The browser's slider thumb center travels from x = thumb-size/2 to
+     * x = trackWidth - thumb-size/2 across the value range, which expressed as a
+     * percentage is `calc(thumb-size/2 + pct * (100% - thumb-size))`.
+     */
+    function positionThumbIcon() {
+        if (!thumbIcon) return;
+        const sMin = parseFloat(slider.min);
+        const sMax = parseFloat(slider.max);
+        const val = parseFloat(slider.value);
+        const pct = (val - sMin) / (sMax - sMin);
+        // Thumb size is hardcoded to 32px in styles.css; if that changes, update here too.
+        thumbIcon.style.left = `calc(16px + ${pct.toFixed(5)} * (100% - 32px))`;
+    }
+
+    /* ===== Sun ↔ moon icon morph =====
+       Mobile Safari doesn't reliably animate SVG `cx`/`cy`/`r` as CSS properties
+       (especially on circles inside <mask>), so we drive those attributes from
+       JS via setAttribute — works everywhere. CSS still handles fill, opacity,
+       and transform (all well-supported animations). */
+    const ICON_SUN  = { biteX: 24, biteY: 0, biteR: 2,   discR: 4.5 };
+    const ICON_MOON = { biteX: 16, biteY: 8, biteR: 6.5, discR: 7   };
+    const ICON_MORPH_MS = 600; // mirrors --morph-duration in styles.css
+
+    function applyIconState(s) {
+        if (thumbIconBite) {
+            thumbIconBite.setAttribute('cx', s.biteX);
+            thumbIconBite.setAttribute('cy', s.biteY);
+            thumbIconBite.setAttribute('r',  s.biteR);
+        }
+        if (thumbIconDisc) {
+            thumbIconDisc.setAttribute('r', s.discR);
+        }
+    }
+
+    // Approximates cubic-bezier(0.34, 1.56, 0.64, 1) — gentle overshoot to match --morph-easing
+    function easeOutBack(t) {
+        const c1 = 1.70158;
+        const c3 = c1 + 1;
+        return 1 + c3 * Math.pow(t - 1, 3) + c1 * Math.pow(t - 1, 2);
+    }
+
+    let iconMorphRaf = null;
+    let iconIsNight  = null; // null = uninitialized; true/false = stable state
+
+    function morphIcon(toNight) {
+        // First call: snap to the correct state without animation
+        if (iconIsNight === null) {
+            iconIsNight = toNight;
+            applyIconState(toNight ? ICON_MOON : ICON_SUN);
+            return;
+        }
+        if (iconIsNight === toNight) return;
+        iconIsNight = toNight;
+
+        if (iconMorphRaf) cancelAnimationFrame(iconMorphRaf);
+        const from = toNight ? ICON_SUN  : ICON_MOON;
+        const to   = toNight ? ICON_MOON : ICON_SUN;
+        const startTs = performance.now();
+
+        function tick(ts) {
+            const t = Math.min((ts - startTs) / ICON_MORPH_MS, 1);
+            const k = easeOutBack(t);
+            applyIconState({
+                biteX: from.biteX + (to.biteX - from.biteX) * k,
+                biteY: from.biteY + (to.biteY - from.biteY) * k,
+                biteR: from.biteR + (to.biteR - from.biteR) * k,
+                discR: from.discR + (to.discR - from.discR) * k,
+            });
+            if (t < 1) {
+                iconMorphRaf = requestAnimationFrame(tick);
+            } else {
+                iconMorphRaf = null;
+            }
+        }
+        iconMorphRaf = requestAnimationFrame(tick);
+    }
 
     function formatTime(minutes) {
         let adjustedMins = minutes;
-        let daySuffix = '';
-        
         if (minutes < 0) {
             adjustedMins = minutes + 24 * 60;
-            daySuffix = ' (Fri)';
         }
-        
+
         const hours = Math.floor(adjustedMins / 60);
         const mins = adjustedMins % 60;
         const ampm = hours >= 12 ? 'PM' : 'AM';
         const displayHours = hours % 12 || 12;
         const displayMins = mins < 10 ? `0${mins}` : mins;
-        return `${displayHours}:${displayMins} ${ampm}${daySuffix}`;
+        return `${displayHours}:${displayMins} ${ampm}`;
     }
 
     function formatShortTime(minutes) {
@@ -424,25 +505,21 @@ document.addEventListener('DOMContentLoaded', async () => {
         }
         updateFilter(currentMin);
         updateTimeOfDayVisuals(currentMin);
+        positionThumbIcon();
     });
 
     // Initial paint — visuals can fire immediately, filter waits for map
     updateTimeOfDayVisuals(parseInt(slider.value, 10));
+    positionThumbIcon();
     setTimeout(() => {
         updateFilter(parseInt(slider.value, 10));
     }, 6000);
 
     // ===== Milestone ticks =====
     function deriveMilestones() {
-        const validEnds = closuresData
-            .map(c => c.endMin)
-            .filter(m => Number.isFinite(m));
-        const firstReopen = validEnds.length ? Math.min(...validEnds) : 600;
-        const allClear = validEnds.length ? Math.max(...validEnds) : 750;
         return [
-            { id: 'gun',     value: RACE_GUN_MIN, label: 'GUN' },
-            { id: 'reopen',  value: firstReopen,  label: 'REOPEN' },
-            { id: 'allclear',value: allClear,     label: 'ALL CLEAR' },
+            { id: 'gun',     value: RACE_GUN_MIN, label: 'START' },
+            { id: 'allclear',value: 900,          label: 'ALL CLEAR' }, // pinned to 3:00 PM
         ];
     }
 
@@ -454,18 +531,23 @@ document.addEventListener('DOMContentLoaded', async () => {
         const range = sliderMax - sliderMin;
 
         deriveMilestones().forEach(ms => {
-            const pct = ((ms.value - sliderMin) / range) * 100;
+            // Use the SAME positioning formula as the thumb-icon so the tick
+            // sits directly under the thumb when the slider's value matches.
+            // Browser native: thumb-center travels from x = thumb-size/2 to
+            // x = wrapWidth - thumb-size/2 across the range. Thumb is 32px (see styles.css).
+            const frac = (ms.value - sliderMin) / range;
+            const leftCalc = `calc(16px + ${frac.toFixed(5)} * (100% - 32px))`;
 
             const tick = document.createElement('div');
             tick.className = 'time-tick';
             tick.dataset.milestone = ms.id;
             tick.dataset.value = String(ms.value);
-            tick.style.left = `${pct}%`;
+            tick.style.left = leftCalc;
 
             const label = document.createElement('div');
             label.className = 'time-tick-label';
             label.dataset.milestone = ms.id;
-            label.style.left = `${pct}%`;
+            label.style.left = leftCalc;
             label.textContent = ms.label;
 
             wrap.appendChild(tick);
@@ -477,7 +559,7 @@ document.addEventListener('DOMContentLoaded', async () => {
 
     // ===== Auto-play loop =====
     const playBtn = document.getElementById('time-play');
-    const PLAY_DURATION_MS = 60000; // 60s for full midnight -> 3 PM sweep
+    const PLAY_DURATION_MS = 8000; // 8s for full pre-race -> 4 PM sweep
 
     let rafId = null;
     let lastFrameTs = null;
@@ -519,12 +601,10 @@ document.addEventListener('DOMContentLoaded', async () => {
             const dt = ts - lastFrameTs;
             lastFrameTs = ts;
 
-            const next = parseInt(slider.value, 10) + minsPerMs * dt;
+            let next = parseInt(slider.value, 10) + minsPerMs * dt;
+            // Loop back to start instead of stopping at the end
             if (next >= sliderMax) {
-                slider.value = String(sliderMax);
-                slider.dispatchEvent(new Event('input'));
-                stopPlay();
-                return;
+                next = sliderMin;
             }
             slider.value = String(Math.round(next));
             slider.dispatchEvent(new Event('input'));
@@ -896,25 +976,30 @@ document.addEventListener('DOMContentLoaded', async () => {
             safeAreaBottom = 16;
         }
         
-        const collapsedBuffer = 60; // Matching selected configuration
-        
+        const collapsedBuffer = 70; // Tuned — leaves a peek of the list when collapsed
+
         return {
             collapsed: sidebarHeader.offsetHeight + safeAreaBottom + collapsedBuffer,
-            default: vh * 0.25,
+            default: vh * 0.30,
             expanded: vh * 0.85
         };
     }
 
     function onTouchStart(e) {
-        if (window.innerWidth > 768) return;
+        if (window.innerWidth > 900) return;
         if (e.target.closest('.slider-container')) return;
-        
+
         startY = e.touches ? e.touches[0].clientY : e.clientY;
         currentY = startY;
         initialHeight = sidebar.offsetHeight;
         initialScrollTop = listContainer ? listContainer.scrollTop : 0;
         const snaps = getSnapHeights();
-        
+
+        // First time the user drags, collapse the legend's offset from its
+        // wider initial-load value (62px) to a tighter follow-the-sheet value.
+        // The CSS transition on `.map-legend` smooths the change.
+        document.documentElement.style.setProperty('--legend-offset', '10px');
+
         if (e.target.closest('header')) {
             isDragging = true;
             dragMode = 'header';
@@ -984,8 +1069,13 @@ document.addEventListener('DOMContentLoaded', async () => {
         
         if (targetHeight === snaps.collapsed) {
             sidebar.classList.add('collapsed');
+            sidebar.classList.remove('is-expanded');
+        } else if (targetHeight === snaps.expanded) {
+            sidebar.classList.remove('collapsed');
+            sidebar.classList.add('is-expanded');
         } else {
             sidebar.classList.remove('collapsed');
+            sidebar.classList.remove('is-expanded');
         }
         
         sidebar.style.height = `${targetHeight}px`;

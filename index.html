@@ -28,7 +28,7 @@
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link
-        href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Lora:ital,wght@0,400;0,500;0,600;1,400&display=swap"
+        href="https://fonts.googleapis.com/css2?family=Inter:wght@100..900&family=Lora:ital,wght@0,400;0,500;0,600;1,400&display=swap"
         rel="stylesheet">
     <!-- Custom Styles -->
     <link rel="stylesheet" href="styles.css">
@@ -51,16 +51,35 @@
     <div id="app">
         <aside id="sidebar">
             <header>
-                <h1>Brooklyn Half Closures</h1>
-                <p>Select a street to view closure details.</p>
+                <!-- <h1>Brooklyn Half Closures</h1> -->
+                <!-- <p>Select a street to view closure details.</p> -->
                 <div class="slider-container">
+                    <div class="slider-track-wrap">
+                        <input type="range" id="time-slider" min="-1" max="960" value="420" step="1">
+                        <svg class="thumb-icon" id="thumb-icon" viewBox="0 0 24 24" aria-hidden="true">
+                            <defs>
+                                <mask id="crescent-mask" maskUnits="userSpaceOnUse" x="0" y="0" width="24" height="24">
+                                    <rect width="24" height="24" fill="white"/>
+                                    <circle class="bite" cx="24" cy="0" r="2" fill="black"/>
+                                </mask>
+                            </defs>
+                            <g class="rays" stroke="#FDB813" stroke-width="1.7" stroke-linecap="round">
+                                <line x1="12" y1="6.5" x2="12" y2="3.5"/>
+                                <line x1="12" y1="17.5" x2="12" y2="20.5"/>
+                                <line x1="6.5" y1="12" x2="3.5" y2="12"/>
+                                <line x1="17.5" y1="12" x2="20.5" y2="12"/>
+                                <line x1="8.1" y1="8.1" x2="6" y2="6"/>
+                                <line x1="15.9" y1="15.9" x2="18" y2="18"/>
+                                <line x1="8.1" y1="15.9" x2="6" y2="18"/>
+                                <line x1="15.9" y1="8.1" x2="18" y2="6"/>
+                            </g>
+                            <circle class="disc" cx="12" cy="12" r="4.5" mask="url(#crescent-mask)"/>
+                        </svg>
+                    </div>
                     <label for="time-slider">
                         <button id="time-play" type="button" aria-label="Play race day">▶</button>
-                        Time: <span id="time-display">7:00 AM</span>
+                        <span id="time-display">7:00 AM</span>
                     </label>
-                    <div class="slider-track-wrap">
-                        <input type="range" id="time-slider" min="-1" max="900" value="420" step="1">
-                    </div>
                 </div>
             </header>
             <ul id="closure-list">

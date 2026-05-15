@@ -17,6 +17,19 @@
     --sky-color-top: #87b8e8;
     --sun-glow: 0.6;
     --sky-overlay-opacity: 0.05;
+
+    /* Map legend's gap above the bottom sheet. Starts wider on first load so
+       the legend sits comfortably below the top-page chrome; JS flips this to
+       10px the first time the user drags the sheet so the legend tracks closely. */
+    --legend-offset: 62px;
+
+    /* Sun↔moon icon morph (DOM SVG overlay) */
+    --morph-duration: 600ms;
+    --morph-easing: cubic-bezier(0.34, 1.56, 0.64, 1);
+
+    /* Tick + label active-state morph (uses Inter variable font for smooth weight) */
+    --tick-morph-duration: 200ms;
+    --tick-morph-easing: cubic-bezier(0.4, 0, 0.2, 1);
 }
 
 * {
@@ -29,6 +42,7 @@ body, html {
     height: 100%;
     font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
     color: #333;
+    -webkit-tap-highlight-color: transparent; /* kill the iOS / Android Chrome gray flash on tap */
 }
 
 #app {
@@ -39,7 +53,7 @@ body, html {
 }
 
 #sidebar {
-    width: 320px;
+    width: 400px;
     background-color: #f8f9fa;
     border-right: 1px solid #dee2e6;
     display: flex;
@@ -48,8 +62,8 @@ body, html {
 }
 
 #sidebar header {
-    padding: 20px;
-    background-color: #FDB813; /* Solid yellow */
+    padding: 20px 2px;            /* edge-to-edge horizontally, matches mobile */
+    background-color: transparent; /* matches mobile sheet header */
     border-bottom: 2px solid #000;
 }
 
@@ -80,8 +94,13 @@ body, html {
     transition: background-color 0.2s ease;
 }
 
-#closure-list li:hover {
-    background-color: #fff3cd;
+/* Only apply hover styling on devices that actually have a hover-capable pointer
+   (mouse / trackpad). Touch devices treat :hover as sticky and would flash the
+   highlight on every swipe — `@media (hover: hover)` opts them out. */
+@media (hover: hover) {
+    #closure-list li:hover {
+        background-color: #fff3cd;
+    }
 }
 
 #closure-list li.active {
@@ -112,7 +131,7 @@ body, html {
 }
 
 /* Responsive design for smaller screens */
-@media (max-width: 768px) {
+@media (max-width: 900px) {
     #app {
         display: block;
         position: relative;
@@ -132,11 +151,10 @@ body, html {
     /* Map legend top right */
     /* Map legend top right */
     .map-legend {
-        bottom: calc(var(--sheet-height) + 10px) !important;
+        bottom: calc(var(--sheet-height) + var(--legend-offset)) !important;
         top: auto !important;
         right: 10px !important;
         padding: 10px 12px;
-        border-left: 4px solid #FDB813;
         z-index: 1000;
         height: max-content !important;
         width: max-content !important;
@@ -176,22 +194,18 @@ body, html {
         left: 0;
         right: 0;
         width: 100%;
-        height: 25vh; /* Default height allocation */
+        height: 30vh; /* Default height allocation (matches default snap) */
         border-right: none;
-        border-top: 2px solid #000;
-        border-radius: 20px 20px 0 0;
-        box-shadow: 0 -4px 20px rgba(0,0,0,0.2);
+        border-top: 6px solid #ffffff;
+        border-radius: 29px 29px 0 0;
+        box-shadow: 0 -11px 26px rgba(0, 0, 0, 0.25);
         z-index: 2000; /* Sit above map and legend */
-        
+
         /* Buffers */
         --expanded-buffer: 60px;
         --collapsed-buffer: 60px;
-        
-        transition: height 0.3s cubic-bezier(0.25, 1, 0.5, 1);
-    }
 
-    #sidebar.collapsed #closure-list {
-        display: none;
+        transition: height 0.3s cubic-bezier(0.25, 1, 0.5, 1);
     }
 
     /* Disable CSS transitions when the user is actively dragging */
@@ -199,22 +213,38 @@ body, html {
         transition: none;
     }
 
-    /* Visual drag handle indicator */
+    /* Visual drag handle indicator — absolute positioning keeps it out of the
+       sidebar's flex flow. (Previously the gripper was a flex child and got
+       compressed by flex-shrink when the sheet expanded — rendering at ~1.5px
+       instead of 4px.) The header takes drags via touch-action: none. */
     #sidebar::before {
         content: "";
-        display: block;
-        width: 40px;
+        position: absolute;
+        top: 15px;
+        left: 50%;
+        transform: translateX(-50%);
+        width: 78px;
         height: 4px;
-        background: rgba(0, 0, 0, 0.3);
-        border-radius: 2px;
-        margin: 8px auto -12px auto;
+        background: rgba(0, 0, 0, 0.4);
+        border-radius: 3px;
+        pointer-events: none;
         z-index: 10;
+        transition: width 220ms cubic-bezier(0.4, 0, 0.2, 1),
+                    background 220ms cubic-bezier(0.4, 0, 0.2, 1);
+    }
+
+    /* Expanded-state gripper — morphs when the sheet snaps to its expanded height */
+    #sidebar.is-expanded::before {
+        width: 54px;
+        background: rgba(11, 27, 61, 0.4);
     }
 
     /* Compact header typography */
     #sidebar header {
-        padding: 15px;
-        touch-action: none; /* Prevent vertical page scroll while dragging header */
+        padding: 27px 2px 0;           /* edge-to-edge horizontally, room above for gripper */
+        background-color: transparent; /* Reveal sheet bg + gripper above (desktop sets it yellow) */
+        border-bottom: none;           /* Drop the desktop black under-rule on mobile */
+        touch-action: none;            /* Prevent vertical page scroll while dragging header */
         cursor: grab;
     }
     #sidebar header:active {
@@ -249,16 +279,6 @@ body, html {
     }
 }
 
-/* Mobile polish — hide tick labels under 480px */
-@media (max-width: 480px) {
-    .time-tick-label {
-        display: none;
-    }
-
-    .slider-track-wrap {
-        padding: 8px 0; /* less vertical room needed without labels */
-    }
-}
 
 /* Custom Float Overlay Container (Option 2: Frosted Glass HUD) */
 .custom-street-overlay-container {
@@ -349,22 +369,41 @@ body, html {
 
 /* Slider Styling */
 .slider-container {
-    margin-top: 15px;
-    background: #000;
-    color: #fff;
+    margin-top: 0;
+    color: #1f2937; /* slate-800 — high contrast on the light sheet bg */
     padding: 10px;
-    border-radius: 4px;
+    display: flex;
+    align-items: center;
+    gap: 12px;
+}
+
+.slider-container .slider-track-wrap {
+    flex: 1;
+    min-width: 0; /* allow the track to shrink below its intrinsic size */
 }
 
 .slider-container label {
     display: flex;
-    justify-content: space-between;
+    align-items: center;
+    gap: 4px;
     font-weight: bold;
-    margin-bottom: 5px;
+    flex-shrink: 0; /* keep play+time on one line, never wrap */
 }
 
 .slider-container span {
-    color: #FDB813; /* Yellow accent */
+    color: #92400e; /* amber-800 — keeps the sun-themed accent at AA contrast on white */
+}
+
+/* Tabular figures so the time digits don't reflow as the value changes
+   (e.g., "1:00 AM" → "11:00 AM"). Inter supports the OpenType `tnum` feature.
+   `min-width` + `inline-block` reserves space for the widest format ("11:00 AM"),
+   so the span doesn't shrink when the hour drops to a single digit. */
+#time-display {
+    font-variant-numeric: tabular-nums;
+    font-feature-settings: "tnum";
+    display: inline-block;
+    min-width: 5em;
+    text-align: left;
 }
 
 #time-play {
@@ -378,7 +417,7 @@ body, html {
     font-size: 10px;
     line-height: 1;
     padding: 0 0 0 1px; /* nudge play glyph optically center */
-    margin-right: 6px;
+    margin-right: 0;
     display: inline-flex;
     align-items: center;
     justify-content: center;
@@ -400,7 +439,8 @@ body, html {
 
 .slider-track-wrap {
     position: relative;
-    padding: 14px 0; /* room above for tick labels (added in Task 5) */
+    top: 5px; /* visual nudge to vertically center the track with the play/time controls — tweak this value */
+    padding: 14px 0 22px; /* top: 14, bottom: 22 — bottom reserves space for ticks + labels beneath the thumb */
 }
 
 #time-slider {
@@ -438,81 +478,138 @@ body, html {
     }
 }
 
-/* Sun thumb — Chrome/Safari */
+/* Thumb is the "badge" — a circular puck with a dark translucent fill +
+   backdrop blur to provide contrast against the sky-gradient track.
+   The sun/moon ICON lives in a separate DOM SVG (.thumb-icon) overlaid on top. */
 #time-slider::-webkit-slider-thumb {
     -webkit-appearance: none;
     appearance: none;
-    width: 22px;
-    height: 22px;
+    width: 32px;
+    height: 32px;
     border-radius: 50%;
-    background: radial-gradient(circle at 30% 30%, #fff5d6, #FDB813 60%, #c98c00);
-    border: 2px solid #18181b;
-    box-shadow: 0 0 12px rgba(253, 184, 19, var(--sun-glow));
+    background-color: rgba(10, 10, 12, 0.41);
+    backdrop-filter: blur(9px);
+    -webkit-backdrop-filter: blur(9px);
+    border: none;
+    box-shadow: 0 0 15px rgba(253, 184, 19, var(--sun-glow));
     cursor: grab;
-    margin-top: -7px; /* center 22px thumb on 12px track (1px border each side) */
+    margin-top: -12px; /* center 32px thumb on 12px track (1px border each side) */
+    transition: background-color var(--morph-duration) var(--morph-easing),
+                box-shadow var(--morph-duration) var(--morph-easing);
 }
 
 #time-slider::-webkit-slider-thumb:active {
     cursor: grabbing;
 }
 
-/* Sun thumb — Firefox */
 #time-slider::-moz-range-thumb {
-    width: 22px;
-    height: 22px;
+    width: 32px;
+    height: 32px;
     border-radius: 50%;
-    background: radial-gradient(circle at 30% 30%, #fff5d6, #FDB813 60%, #c98c00);
-    border: 2px solid #18181b;
-    box-shadow: 0 0 12px rgba(253, 184, 19, var(--sun-glow));
+    background-color: rgba(10, 10, 12, 0.41);
+    backdrop-filter: blur(9px);
+    border: none;
+    box-shadow: 0 0 15px rgba(253, 184, 19, var(--sun-glow));
     cursor: grab;
+    transition: background-color var(--morph-duration) var(--morph-easing),
+                box-shadow var(--morph-duration) var(--morph-easing);
 }
 
-/* Pre-dawn moon swap — cool palette */
+/* Pre-dawn: the glow shifts cool. Icon morph (.thumb-icon) handles the sun↔moon visual. */
 .slider-track-wrap.is-night #time-slider::-webkit-slider-thumb {
-    background: radial-gradient(circle at 30% 30%, #e8eef5, #9faec1 60%, #5a6478);
-    box-shadow: 0 0 8px rgba(159, 174, 193, var(--sun-glow));
+    box-shadow: 0 0 10px rgba(159, 174, 193, var(--sun-glow));
 }
 .slider-track-wrap.is-night #time-slider::-moz-range-thumb {
-    background: radial-gradient(circle at 30% 30%, #e8eef5, #9faec1 60%, #5a6478);
-    box-shadow: 0 0 8px rgba(159, 174, 193, var(--sun-glow));
+    box-shadow: 0 0 10px rgba(159, 174, 193, var(--sun-glow));
 }
 
+/* ===== Morphing sun↔moon icon (DOM SVG overlay above the slider thumb) ===== */
+.thumb-icon {
+    position: absolute;
+    top: 40%;
+    /* `left` is set inline by JS to follow the slider thumb's center */
+    width: 32px;
+    height: 32px;
+    transform: translate(-50%, -50%);
+    pointer-events: none;
+    overflow: visible;
+}
+
+/* Disc / bite geometry (r, cx, cy) is morphed in JS via setAttribute — see
+   morphIcon() in app.js. Mobile Safari doesn't reliably animate SVG geometry
+   as CSS properties (especially on circles inside <mask>), so we drive those
+   attributes from JS. CSS handles fill (well-supported across browsers). */
+.thumb-icon .disc {
+    fill: #FDB813;
+    transition: fill var(--morph-duration) var(--morph-easing);
+}
+.slider-track-wrap.is-night .thumb-icon .disc {
+    fill: #e8eef5;
+}
+
+.thumb-icon .rays {
+    opacity: 1;
+    transform: scale(1);
+    transform-origin: 12px 12px;
+    transform-box: view-box;
+    transition: opacity var(--morph-duration) var(--morph-easing),
+                transform var(--morph-duration) var(--morph-easing);
+}
+.slider-track-wrap.is-night .thumb-icon .rays {
+    opacity: 0;
+    transform: scale(0.3);
+}
+
+/* Ticks are short stripes BELOW the thumb (not a band spanning the track).
+   Math: wrap padding-top 14 + slider half-height 11 = slider center 25.
+         tick top = slider-center 25 + thumb-radius 16 + gap 2 = 43. */
 .time-tick {
     position: absolute;
-    top: 8px; /* matches .slider-track-wrap padding-top: 14px minus 6px to sit on track */
-    bottom: 8px;
+    top: 43px;
+    height: 8px;
     width: 2px;
-    background: rgba(255, 255, 255, 0.85);
+    background: rgba(0, 0, 0, 0.32); /* dark gray — visible on white sheet bg */
     border-radius: 1px;
     transform: translateX(-50%);
     pointer-events: none;
-    transition: width 120ms ease-out, background-color 120ms ease-out;
+    transition: width var(--tick-morph-duration) var(--tick-morph-easing),
+                background-color var(--tick-morph-duration) var(--tick-morph-easing),
+                box-shadow var(--tick-morph-duration) var(--tick-morph-easing);
 }
 
 .time-tick-label {
     position: absolute;
-    top: 100%;
+    top: 51px; /* tick top 43 + tick height 8 — label sits directly below the tick */
     left: 0;
     transform: translateX(-50%);
-    margin-top: 2px;
-    font-family: 'Inter', sans-serif;
+    margin-top: 3px;
+    font-family: 'Inter', system-ui, sans-serif;
+    /* Variable-font weight axis — see the Inter Google Fonts URL (wght@100..900) in index.html.
+       Belt-and-suspenders: font-weight + font-variation-settings both declared so any
+       renderer that doesn't interpolate font-weight on variable fonts still morphs the wght axis. */
+    font-variation-settings: "wght" 300;
     font-size: 9px;
+    font-weight: 300;
     text-transform: uppercase;
     letter-spacing: 0.04em;
-    color: #a1a1aa;
+    color: #040405; /* zinc-600 — AA contrast on white */
     white-space: nowrap;
     pointer-events: none;
-    transition: color 120ms ease-out;
+    transition: color var(--tick-morph-duration) var(--tick-morph-easing),
+                font-weight var(--tick-morph-duration) var(--tick-morph-easing),
+                font-variation-settings var(--tick-morph-duration) var(--tick-morph-easing);
 }
 
 .time-tick.is-active {
     width: 3px;
-    background: #FDB813;
-    box-shadow: 0 0 6px rgba(253, 184, 19, 0.8);
+    background: #B45309; /* amber-700 — readable accent on white */
+    box-shadow: 0 0 5px rgba(180, 83, 9, 0.45);
 }
 
 .time-tick-label.is-active {
-    color: #FDB813;
+    color: #92400e; /* amber-800 — matches the time-display accent */
+    font-weight: 600;
+    font-variation-settings: "wght" 600;
 }
 
 .solid-trace {
@@ -574,7 +671,6 @@ body, html {
     border-radius: 8px;
     box-shadow: 0 4px 16px rgba(0,0,0,0.15);
     z-index: 1000;
-    border-left: 6px solid #FDB813;
     pointer-events: auto;
     font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
 }
@@ -1069,7 +1165,7 @@ body, html {
 }
 
 /* Responsive scaling for Mobile Devices */
-@media (max-width: 768px) {
+@media (max-width: 900px) {
     .onboarding-overlay {
         padding: 0;
         align-items: flex-start;
