@@ -391,6 +391,35 @@ body, html {
     }
 }
 
+/* Sun thumb — Chrome/Safari */
+#time-slider::-webkit-slider-thumb {
+    -webkit-appearance: none;
+    appearance: none;
+    width: 22px;
+    height: 22px;
+    border-radius: 50%;
+    background: radial-gradient(circle at 30% 30%, #fff5d6, #FDB813 60%, #c98c00);
+    border: 2px solid #18181b;
+    box-shadow: 0 0 12px rgba(253, 184, 19, var(--sun-glow));
+    cursor: grab;
+    margin-top: -7px; /* center 22px thumb on 12px track (1px border each side) */
+}
+
+#time-slider::-webkit-slider-thumb:active {
+    cursor: grabbing;
+}
+
+/* Sun thumb — Firefox */
+#time-slider::-moz-range-thumb {
+    width: 22px;
+    height: 22px;
+    border-radius: 50%;
+    background: radial-gradient(circle at 30% 30%, #fff5d6, #FDB813 60%, #c98c00);
+    border: 2px solid #18181b;
+    box-shadow: 0 0 12px rgba(253, 184, 19, var(--sun-glow));
+    cursor: grab;
+}
+
 .solid-trace {
     pointer-events: none;
     stroke-dasharray: 2000 !important;
