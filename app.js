@@ -98,16 +98,32 @@ document.addEventListener('DOMContentLoaded', async () => {
         gestureHandling: 'greedy'
     });
 
+    const trafficLayer = new google.maps.TrafficLayer();
+    const trafficVisibleInitial = localStorage.getItem('bk-half-traffic-visible') !== 'false';
+    if (trafficVisibleInitial) trafficLayer.setMap(map);
+
     const listContainer = document.getElementById('closure-list');
     const layersMap = new Map(); // id -> { polylines: [], content: string }
     const sharedInfoWindow = new StreetDetailsOverlay();
 
-    // Style options for Solid Lines
+    // Closure style: near-black base with repeating gold hazard ticks,
+    // designed to stand out against Google's red traffic congestion colors.
     const solidStyle = {
-        strokeColor: '#d93025',
-        strokeWeight: 4,
+        strokeColor: '#0d0d0d',
+        strokeWeight: 5,
         strokeOpacity: 1.0,
-        zIndex: 2
+        zIndex: 3,
+        icons: [{
+            icon: {
+                path: 'M 0,-1 0,1',
+                strokeColor: '#FDB813',
+                strokeOpacity: 1,
+                strokeWeight: 4,
+                scale: 2
+            },
+            offset: '0',
+            repeat: '14px'
+        }]
     };
 
     function fetchAndPlotRoute(item, latlngArray, targetPolylinesArray) {
@@ -1100,6 +1116,16 @@ document.addEventListener('DOMContentLoaded', async () => {
                 mapLegend.classList.toggle('collapsed');
             });
         }
+    }
+
+    const trafficToggle = document.getElementById('traffic-toggle');
+    if (trafficToggle) {
+        trafficToggle.checked = trafficVisibleInitial;
+        trafficToggle.addEventListener('change', (e) => {
+            const visible = e.target.checked;
+            trafficLayer.setMap(visible ? map : null);
+            localStorage.setItem('bk-half-traffic-visible', String(visible));
+        });
     }
 
     // ==========================================

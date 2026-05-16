@@ -118,6 +118,12 @@
                         <div class="legend-icon checkpoint-badge">Mile</div>
                         <span>Mile markers</span>
                     </div>
+                    <label class="legend-item legend-item-toggle" title="Live road conditions from Google">
+                        <input type="checkbox" id="traffic-toggle" class="legend-toggle-input" checked>
+                        <div class="legend-icon traffic-swatch" aria-hidden="true"></div>
+                        <span>Live traffic</span>
+                        <span class="legend-toggle-pill" aria-hidden="true"></span>
+                    </label>
                 </div>
             </div>
         </main>
@@ -204,13 +210,19 @@
                             <path d="M 440 120 L 320 260 L 200 550 L 180 750" stroke="#ffffff" stroke-width="4"
                                 stroke-linecap="round" stroke-linejoin="round" />
     
-                            <!-- PIXEL MATCHED CLOSURES OVERLAYS (#d93025) -->
-                            <path id="onboarding-closure-flatbush" d="M 440 120 L 320 260" stroke="#d93025" stroke-width="6"
+                            <!-- PIXEL MATCHED CLOSURES OVERLAYS (near-black + gold hazard ticks) -->
+                            <path id="onboarding-closure-flatbush" d="M 440 120 L 320 260" stroke="#0d0d0d" stroke-width="6"
                                 stroke-linecap="round" class="closure-segment active" />
-                            <path id="onboarding-closure-op-north" d="M 320 260 L 200 550" stroke="#d93025" stroke-width="6"
+                            <path d="M 440 120 L 320 260" stroke="#FDB813" stroke-width="6" stroke-linecap="butt"
+                                stroke-dasharray="4 12" />
+                            <path id="onboarding-closure-op-north" d="M 320 260 L 200 550" stroke="#0d0d0d" stroke-width="6"
                                 stroke-linecap="round" class="closure-segment active" />
-                            <path id="onboarding-closure-op-south" d="M 200 550 L 180 750" stroke="#d93025" stroke-width="6"
+                            <path d="M 320 260 L 200 550" stroke="#FDB813" stroke-width="6" stroke-linecap="butt"
+                                stroke-dasharray="4 12" />
+                            <path id="onboarding-closure-op-south" d="M 200 550 L 180 750" stroke="#0d0d0d" stroke-width="6"
                                 stroke-linecap="round" class="closure-segment active" />
+                            <path d="M 200 550 L 180 750" stroke="#FDB813" stroke-width="6" stroke-linecap="butt"
+                                stroke-dasharray="4 12" />
     
                             <!-- DYNAMIC PHYSICS RUNNER SWARM GROUP CONTAINER -->
                             <g id="onboarding-swarm-group" class="swarm-group">
